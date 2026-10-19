@@ -1,4 +1,4 @@
-/* Maiac AI Marketing. Native navigation, scrolling and SVG transforms; no dependencies. */
+/* Maiac AI Marketing local footer study. Native scrolling, SVG artwork and bounded Canvas 2D; no dependencies. */
 (() => {
   'use strict';
   let dispose;
@@ -18,6 +18,7 @@
     const progress = $('[data-progress]'), mark = $('[data-footer-mark]');
     const mainMark = $('.site-footer__mark-img', mark);
     let frame = 0, layoutNeeded = true, opener = null, lockedY = 0, lastActive = null;
+    let atPageEnd = false, preservePageEnd = false;
 
     // Native dialog supplies modal containment, inert background and top-layer coverage.
     const closeMenu = (restore = true) => {
@@ -136,7 +137,7 @@
       });
     }
 
-    // Seven narrowing SVG copies; static/no-JS mode always uses the final mark.
+    // Persistent narrowing artwork: scrolling uncovers it without changing its pose.
     const copies = Array.from({ length: 7 }, () => {
       const copy = mainMark.cloneNode(false);
       copy.className = 'site-footer__mark-copy';
@@ -144,13 +145,173 @@
       mark.insertBefore(copy, mainMark);
       return copy;
     });
-    cleanups.push(() => copies.forEach(copy => copy.remove()));
+    mark.classList.add('is-accordion');
+    // User-selected exception: direct cursor motion stays active under reduced
+    // motion. Other page effects continue to honor the motion media query.
+    const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
+    const flowCanvas = document.createElement('canvas');
+    flowCanvas.className = 'site-footer__flow';
+    flowCanvas.setAttribute('aria-hidden', 'true');
+    mark.append(flowCanvas);
+    const columns = 24, rows = 28, count = (columns + 1) * (rows + 1);
+    const flowX = new Float32Array(count), flowY = new Float32Array(count);
+    let artWidth = 0, artHeight = 0, artDpr = 1, footerHeight = 1, geometry = [];
+    let contours = null, contoursLoading = false, preparedPaths = [], pathsDirty = true, flowContext = null;
+    let pointerPoint = null, pointerInput = null, velocityX = 0, velocityY = 0;
+    let flowTime = 0, flowActive = false;
+    const resetFlow = () => {
+      flowX.fill(0); flowY.fill(0);
+      pointerPoint = null; pointerInput = null; velocityX = 0; velocityY = 0;
+      flowTime = 0; flowActive = false;
+      mark.classList.remove('is-flowing');
+    };
+    const measureArt = () => {
+      const rect = mark.getBoundingClientRect();
+      artWidth = rect.width; artHeight = rect.height;
+      artDpr = Math.min(devicePixelRatio || 1, 2);
+      // Fill the footer vertically without changing the approved horizontal rhythm
+      // when the viewport narrows. The SVG viewport itself keeps its native ratio.
+      const sourceWidth = artHeight * 847 / 537;
+      const mainWidth = artWidth / 3 * 847 / 537;
+      let x = 0;
+      geometry = [...copies].reverse().map((image, i) => {
+        const width = mainWidth * 0.5 * 0.62 ** (6 - i);
+        const item = { image, x, width };
+        x += width;
+        return item;
+      });
+      geometry.push({ image: mainMark, x, width: mainWidth });
+      geometry.forEach(({ image, x, width }) => {
+        // Keep the SVG viewport at its intrinsic aspect ratio before narrowing it.
+        // A full-art-width viewport letterboxes the SVG, then squeezes it twice.
+        image.style.inlineSize = `${sourceWidth}px`;
+        image.style.transform = `translate3d(${x}px,0,0) scaleX(${width / sourceWidth})`;
+        image.style.opacity = '1';
+      });
+      pathsDirty = true;
+      resetFlow();
+    };
+    const loadContours = () => {
+      if (contours || contoursLoading || !finePointer.matches) return;
+      contoursLoading = true;
+      // Derived from the shipped SVG offline, so moving the mouse never has to
+      // sample SVG geometry or import a graphics library.
+      fetch(new URL('maiac-ma-contours.json', mainMark.src), { signal: lifecycle.signal })
+        .then(response => { if (!response.ok) throw new Error(`Artwork data: ${response.status}`); return response.json(); })
+        .then(data => { contours = data.paths; pathsDirty = true; })
+        .catch(error => { if (error.name !== 'AbortError') console.warn('[Maiac] Cursor effect unavailable; static artwork retained.', error); });
+    };
+    const preparePaths = () => {
+      if (!contours || !artWidth || !artHeight) return false;
+      flowContext ||= flowCanvas.getContext('2d', { alpha: false });
+      if (!flowContext) return false;
+      if (pathsDirty) {
+        flowCanvas.width = Math.ceil(artWidth * artDpr);
+        flowCanvas.height = Math.ceil(artHeight * artDpr);
+        preparedPaths = geometry.map(({ x, width }) => contours.map(glyph => glyph.map(contour => contour.map(([sourceX, sourceY]) => {
+          const px = x + sourceX / 847 * width, py = sourceY / 537 * artHeight;
+          const gx = Math.max(0, Math.min(columns, px / artWidth * columns));
+          const gy = Math.max(0, Math.min(rows, py / artHeight * rows));
+          const ix = Math.min(columns - 1, Math.floor(gx)), iy = Math.min(rows - 1, Math.floor(gy));
+          const tx = gx - ix, ty = gy - iy, i = iy * (columns + 1) + ix;
+          return [px, py, i, (1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
+        }))));
+        pathsDirty = false;
+      }
+      return true;
+    };
+    // Original Canvas 2D contour renderer keeps curves continuous on every engine.
+    // No WebGL, image readback, external code, scroll interception or idle render loop.
+    const paintFlow = now => {
+      if (!flowActive) return;
+      if (!finePointer.matches || document.hidden || !preparePaths()) { resetFlow(); return; }
+      const elapsed = Math.max(1, Math.min(64, now - flowTime));
+      const decay = Math.exp(-elapsed / 230);
+      flowTime = now;
+      let energy = 0;
+      for (let i = 0; i < count; i++) {
+        flowX[i] *= decay; flowY[i] *= decay;
+      }
+      if (pointerInput) {
+        // Consume movement once per frame, independent of mouse polling frequency.
+        const { x, y, dx, dy, start, time } = pointerInput;
+        const dt = Math.max(8, Math.min(80, time - start));
+        const smoothing = 1 - Math.exp(-elapsed / 24);
+        velocityX += (dx / dt - velocityX) * smoothing;
+        velocityY += (dy / dt - velocityY) * smoothing;
+        const targetX = 160 * Math.tanh(velocityX * 0.85);
+        const targetY = 36 * Math.tanh(velocityY * 0.65);
+        const rx = Math.max(90, artWidth * 0.17), ry = Math.max(40, artHeight * 0.24);
+        const response = 1 - Math.exp(-elapsed / 40);
+        for (let row = 1; row < rows; row++) {
+          const py = row / rows * artHeight;
+          for (let col = 1; col < columns; col++) {
+            const px = col / columns * artWidth, i = row * (columns + 1) + col;
+            const influence = Math.exp(-0.5 * (((px - x) / rx) ** 2 + ((py - y) / ry) ** 2)) * Math.sin(Math.PI * row / rows) ** 2;
+            const blend = response * influence;
+            flowX[i] += (targetX - flowX[i]) * blend;
+            flowY[i] += (targetY - flowY[i]) * blend;
+          }
+        }
+        pointerInput = null;
+      }
+      for (let i = 0; i < count; i++) energy = Math.max(energy, Math.abs(flowX[i]), Math.abs(flowY[i]));
+      if (energy < 0.12) { resetFlow(); return; }
+      const ctx = flowContext;
+      ctx.setTransform(artDpr, 0, 0, artDpr, 0, 0);
+      ctx.fillStyle = '#0b0b0b'; ctx.fillRect(0, 0, artWidth, artHeight);
+      ctx.fillStyle = '#ffffff';
+      for (const copy of preparedPaths) for (const glyph of copy) {
+        ctx.beginPath();
+        for (const contour of glyph) {
+          for (let n = 0; n < contour.length; n++) {
+            const [x, y, i, a, b, c, d] = contour[n], j = i + columns + 1;
+            const dx = flowX[i] * a + flowX[i + 1] * b + flowX[j] * c + flowX[j + 1] * d;
+            const dy = flowY[i] * a + flowY[i + 1] * b + flowY[j] * c + flowY[j + 1] * d;
+            if (n) ctx.lineTo(x + dx, y + dy); else ctx.moveTo(x + dx, y + dy);
+          }
+          ctx.closePath();
+        }
+        ctx.fill('nonzero');
+      }
+      mark.classList.add('is-flowing');
+      requestTick();
+    };
+    on(footer, 'pointermove', event => {
+      if (event.pointerType !== 'mouse' || !finePointer.matches || document.hidden) return;
+      const rect = mark.getBoundingClientRect(), now = performance.now();
+      const x = event.clientX - rect.left, y = event.clientY - rect.top;
+      if (x < 0 || x > artWidth || y < 0 || y > artHeight) { pointerPoint = null; return; }
+      if (pointerPoint) {
+        const dx = x - pointerPoint.x, dy = y - pointerPoint.y;
+        if (Math.abs(dx) + Math.abs(dy) > 0.05) {
+          pointerInput = {
+            x, y, dx: (pointerInput?.dx || 0) + dx, dy: (pointerInput?.dy || 0) + dy,
+            start: pointerInput?.start ?? pointerPoint.time, time: now,
+          };
+          if (!flowActive) flowTime = now;
+          flowActive = true; requestTick();
+        }
+      }
+      pointerPoint = { x, y, time: now };
+    }, { passive: true });
+    ['pointerleave', 'pointercancel'].forEach(type => on(footer, type, () => { pointerPoint = null; }));
+    on(finePointer, 'change', () => { resetFlow(); requestTick(); });
+    on(mainMark, 'load', () => { layoutNeeded = true; requestTick(); });
+    on(document, 'visibilitychange', () => {
+      resetFlow();
+      if (document.hidden) { cancelAnimationFrame(frame); frame = 0; }
+      else requestTick();
+    });
+    cleanups.push(() => { resetFlow(); copies.forEach(copy => copy.remove()); flowCanvas.remove(); mark.classList.remove('is-accordion'); mainMark.style.removeProperty('transform'); mainMark.style.removeProperty('inline-size'); });
     const measure = () => {
       // Both modes use the same natural height, so a short window cannot oscillate.
-      const height = footer.offsetHeight, fits = height <= innerHeight;
+      const height = footer.getBoundingClientRect().height, fits = height <= innerHeight;
+      footerHeight = height;
       root.classList.toggle('footer-reveal', fits);
       root.classList.toggle('no-footer-reveal', !fits);
       root.style.setProperty('--footer-h', `${height}px`);
+      measureArt();
       // Text-only zoom can overflow a desktop bar without changing viewport width.
       // Measure an inert natural-width copy independently of the condensed mode.
       let condensed = false;
@@ -169,10 +330,15 @@
       bar.classList.toggle('is-condensed', condensed);
       layoutNeeded = false;
     };
-    const paint = () => {
+    const paint = (now = performance.now()) => {
       frame = 0;
-      if (menu.open) return;
+      if (menu.open) { resetFlow(); return; }
       if (layoutNeeded) measure();
+      if (preservePageEnd) {
+        preservePageEnd = false;
+        window.scrollTo({ top: root.scrollHeight, behavior: 'instant' });
+      }
+      atPageEnd = root.scrollHeight - innerHeight - scrollY <= 2;
       const visible = header.getBoundingClientRect().bottom <= 0;
       if (bar.classList.contains('is-visible') !== visible) {
         bar.classList.toggle('is-visible', visible);
@@ -194,28 +360,31 @@
       }
       const max = root.scrollHeight - innerHeight;
       progress.style.setProperty('--progress', String(max > 0 ? Math.max(0, Math.min(1, scrollY / max)) : 0));
-      const height = footer.offsetHeight || 1;
-      const uncovered = Math.max(0, Math.min(height, innerHeight - page.getBoundingClientRect().bottom));
+      const height = footerHeight;
+      const pageBottom = page.getBoundingClientRect().bottom;
+      if (pageBottom < innerHeight + 600) loadContours();
+      const uncovered = Math.max(0, Math.min(height, innerHeight - pageBottom));
       const p = root.classList.contains('footer-reveal') ? uncovered / height : 1;
       const rest = motion.matches ? 0 : 1 - p * p * (3 - 2 * p);
       footer.style.setProperty('--reveal-rest', String(rest));
-      const width = mark.offsetWidth;
-      let offset = width * (1 - 0.3 * rest), scale = 0.5 * rest;
-      copies.forEach(copy => {
-        copy.style.transform = `translate3d(${-offset}px,0,0) scaleX(${scale})`;
-        copy.style.opacity = scale > 0.002 && !motion.matches ? '1' : '0';
-        offset += width * scale;
-        scale *= 0.62;
-      });
+      footer.style.setProperty('--reveal-progress', String(p));
+      if (!uncovered && root.classList.contains('footer-reveal')) resetFlow();
+      else paintFlow(now);
     };
     function requestTick() { if (!frame) frame = requestAnimationFrame(paint); }
     on(window, 'scroll', requestTick, { passive: true });
-    on(window, 'resize', () => { layoutNeeded = true; requestTick(); });
+    on(window, 'resize', () => {
+      // Retain a fully uncovered footer across responsive reflow without moving
+      // readers who were part-way through the page before the resize.
+      preservePageEnd ||= atPageEnd;
+      layoutNeeded = true;
+      requestTick();
+    });
     on(window, 'load', () => { layoutNeeded = true; requestTick(); });
     on(motion, 'change', requestTick);
     on(document.fonts, 'loadingdone', () => { layoutNeeded = true; requestTick(); });
     const observer = new ResizeObserver(() => { layoutNeeded = true; requestTick(); });
-    [footer, page, header, $('.nav-bar__inner'), $('.nav-bar__list')].forEach(element => observer.observe(element));
+    [footer, mark, page, header, $('.nav-bar__inner'), $('.nav-bar__list')].forEach(element => observer.observe(element));
     cleanups.push(() => observer.disconnect());
     $('[data-year]').textContent = new Date().getFullYear();
     root.classList.add('js');

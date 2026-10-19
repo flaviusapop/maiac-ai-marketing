@@ -16,6 +16,12 @@ python -m http.server 8000
 
 Then open http://localhost:8000/.
 
+## Footer interaction
+
+The repeated Ma artwork fills the footer across window sizes and responds directly to cursor movement, then settles. There is no autoplay. By project direction, this cursor interaction remains active when reduced motion is requested; smooth scrolling, work-image zoom and decorative transitions still honor that preference. Touch devices retain native scrolling and static artwork. Short windows use a normal-flow footer.
+
+The contour data is derived from the supplied Ma SVG and adds no runtime dependency.
+
 ## Contact and outstanding configuration
 
 The contact form is deliberately disconnected. It validates fields locally but does not deliver messages until a genuine handler is set in `data-endpoint` on the form in `index.html`. The real handler must validate input and enforce the website honeypot server-side. No provider has been chosen.
