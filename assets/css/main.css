@@ -172,6 +172,10 @@ button, input, textarea { font: inherit; color: inherit; }
   min-inline-size: calc(5ch + 30px); justify-content: center;
   font-size: 15px; font-weight: 500; cursor: pointer;
 }
+.menu-toggle:focus-visible {
+  outline-color: transparent;
+  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.2em;
+}
 
 /* ---------- Header (full) ---------- */
 .site-header {
@@ -353,9 +357,12 @@ html.menu-open, body.menu-open { overflow: hidden; }
 }
 .field__input::placeholder { color: var(--muted); opacity: 1; }
 .field__input:focus { border-bottom-width: 2px; padding-bottom: 9px; }
-.field__input:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.field__input:focus-visible { outline-color: transparent; }
 .field__input--area { block-size: 101px; min-block-size: 101px; padding-block: 10px; resize: vertical; }
 .field__input--area:focus { padding-block-end: 9px; }
+@media (forced-colors: active) {
+  .field__input:focus-visible, .menu-toggle:focus-visible { outline-color: Highlight; }
+}
 .field.is-invalid .field__input { border-bottom-color: var(--error); }
 .field__error { font-size: 14px; color: var(--error); }
 .form__submit { display: grid; gap: 16px; justify-items: start; }
