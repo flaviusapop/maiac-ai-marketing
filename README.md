@@ -16,6 +16,12 @@ python -m http.server 8000
 
 Then open http://localhost:8000/.
 
+## Menu interaction
+
+The native navigation dialog uses a short, reversible reveal: 180ms on entry and 140ms on exit. Reduced motion skips the reveal. Close and Escape return focus to the actual opener; section links focus their destination, and consultancy actions focus Name.
+
+Scroll locking preserves the document's scroll range and the page/footer stacking order. Keep the full and compact header coordinates, native dialog containment and immediate navigation behavior when maintaining this interaction.
+
 ## Footer interaction
 
 The repeated Ma artwork fills the footer across window sizes and responds directly to mouse, pen and single-finger movement, then settles. There is no autoplay. By project direction, this direct interaction remains active when reduced motion is requested; smooth scrolling, work-image zoom and decorative transitions still honor that preference. On touch devices, a single-finger drag or native finger scrolling drives the artwork. Scrolling, link taps and pinch zoom keep their browser behavior; multi-finger gestures suspend deformation. Short windows use a normal-flow footer.

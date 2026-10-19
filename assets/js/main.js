@@ -20,50 +20,163 @@
     let frame = 0, layoutNeeded = true, pageStateNeeded = true, opener = null, lockedY = 0, lastActive = null;
     let atPageEnd = false, preservePageEnd = false;
 
-    // Native dialog supplies modal containment, inert background and top-layer coverage.
-    const closeMenu = (restore = true) => {
-      if (!menu.open) return;
-      menu.close();
+    // The native modal stays open/inert/locked for every visible frame, including
+    // exit. WAAPI only supplies the visual interpolation; it never owns navigation.
+    const menuClose = $('[data-menu-close]', menu);
+    let menuState = 'closed', menuAnimations = [], menuRun = 0, bodyStyle = null, rootMinSize = null, menuWidth = 0, menuCut = 0;
+    const setMenuState = state => { menuState = state; menu.dataset.menuState = state; };
+    const cancelMenuMotion = () => {
+      menuRun++;
+      menuAnimations.forEach(animation => animation.cancel());
+      menuAnimations = [];
+    };
+    const restoreOpener = () => {
+      const returnTarget = [opener, $('.nav-bar__logo'), $('.site-header__logo'), ...openers].find(control => {
+        if (!control?.getClientRects().length || control.closest('[inert]')) return false;
+        const rect = control.getBoundingClientRect();
+        return rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
+      });
+      returnTarget?.focus({ preventScroll: true });
+    };
+    const finishMenuClose = (restore = true) => {
+      if (menuState === 'closed' && !menu.open && !bodyStyle && !rootMinSize) return;
+      // Keep the final exit mask until the dialog leaves the native top layer.
+      // close() restores background availability before destination focus.
+      if (menu.open) menu.close();
+      cancelMenuMotion();
+      setMenuState('closed');
+      menu.style.removeProperty('--menu-scrollbar-gap');
       root.classList.remove('menu-open');
       document.body.classList.remove('menu-open');
-      document.body.style.removeProperty('position');
-      document.body.style.removeProperty('top');
-      document.body.style.removeProperty('width');
+      document.body.style.removeProperty('--menu-page-scrollbar');
+      if (bodyStyle) {
+        for (const [property, value, priority] of bodyStyle) {
+          if (value) document.body.style.setProperty(property, value, priority);
+          else document.body.style.removeProperty(property);
+        }
+        bodyStyle = null;
+      }
+      // Restore real content to flow before releasing its reserved scroll range.
+      if (rootMinSize) {
+        const [value, priority] = rootMinSize;
+        if (value) root.style.setProperty('min-block-size', value, priority);
+        else root.style.removeProperty('min-block-size');
+        rootMinSize = null;
+      }
       window.scrollTo({ top: lockedY, behavior: 'instant' });
       openers.forEach(button => button.setAttribute('aria-expanded', 'false'));
-      if (restore) {
-        const returnTarget = [opener, $('.nav-bar__logo'), $('.site-header__logo'), ...openers].find(control => {
-          if (!control?.getClientRects().length || control.closest('[inert]')) return false;
-          const rect = control.getBoundingClientRect();
-          return rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
-        });
-        returnTarget?.focus({ preventScroll: true });
-      }
+      if (restore) restoreOpener();
       requestTick();
     };
-    openers.forEach(button => on(button, 'click', () => {
-      if (menu.open) return;
+    const settleMenu = () => {
+      if (menuState === 'closing') finishMenuClose();
+      else if (menu.open) { cancelMenuMotion(); setMenuState('open'); }
+    };
+    const animateMenu = opening => {
+      const state = opening ? 'opening' : 'closing';
+      if (menuState === state || (opening && menuState === 'open')) return;
+      // Reveal one opaque surface below the stationary head. Crossfading the page
+      // and menu would superimpose two sets of type and two CTA positions.
+      // A reversal samples the current rendered clip once, before cancellation.
+      // There are no frame-loop layout reads or timeout-based completion handlers.
+      const clip = menuAnimations.length ? getComputedStyle(menu).clipPath : '';
+      const sampled = clip.startsWith('inset(') ? parseFloat(clip.split(/\s+/)[2]) : NaN;
+      const from = Number.isFinite(sampled) ? sampled : opening ? menuCut : 0;
+      const to = opening ? 0 : menuCut;
+      cancelMenuMotion();
+      setMenuState(state);
+      if (motion.matches || typeof menu.animate !== 'function' || !CSS.supports('clip-path', 'inset(0)') || document.hidden) { settleMenu(); return; }
+      const styles = getComputedStyle(menu);
+      const duration = parseFloat(styles.getPropertyValue(opening ? '--dur-menu-in' : '--dur-menu-out')) * Math.abs(to - from) / menuCut;
+      if (!duration) { settleMenu(); return; }
+      const run = menuRun;
+      try {
+        menuAnimations.push(menu.animate(
+          [{ clipPath: `inset(0% 0% ${from}% 0%)` }, { clipPath: `inset(0% 0% ${to}% 0%)` }],
+          { duration, easing: styles.getPropertyValue('--ease-out').trim(), fill: 'both' }
+        ));
+        Promise.all(menuAnimations.map(animation => animation.finished)).then(() => {
+          if (run === menuRun) settleMenu();
+        }).catch(() => { /* Cancellation belongs to the newer state. */ });
+      } catch {
+        // Older/partial WAAPI implementations retain a working native dialog.
+        settleMenu();
+      }
+    };
+    const closeMenu = (restore = true, immediate = false) => {
+      // An external native close can precede pagehide in the same task. Clean
+      // up even then, before lifecycle teardown aborts the queued close handler.
+      if (immediate) { finishMenuClose(restore); return; }
+      if (!menu.open) return;
+      if (!restore) finishMenuClose(restore);
+      else animateMenu(false);
+    };
+    const openMenu = button => {
+      if (menu.open) { if (menuState === 'closing') animateMenu(true); return; }
+      // Native close events are queued. Reconcile a synchronous external close
+      // before a new open can snapshot the previous session's fixed body styles.
+      if (menuState !== 'closed' || bodyStyle || rootMinSize) finishMenuClose(false);
       opener = button;
       lockedY = scrollY;
+      menuWidth = innerWidth;
       menu.dataset.menuOrigin = button.closest('[data-nav-bar]') ? 'compact' : 'full';
-      menu.showModal();
+      // Lock before native autofocus can scroll anything. Keep the current body
+      // width while the viewport scrollbar is absent, avoiding page reflow.
+      const bodyWidth = document.body.getBoundingClientRect().width;
+      const scrollbarWidth = innerWidth - root.clientWidth;
+      const documentHeight = root.scrollHeight;
+      rootMinSize = [root.style.getPropertyValue('min-block-size'), root.style.getPropertyPriority('min-block-size')];
+      // A fixed body otherwise collapses the root and resets scrollY to zero.
+      // Keep that range intact before removing the body from normal flow.
+      root.style.setProperty('min-block-size', `${documentHeight}px`);
+      document.body.style.setProperty('--menu-page-scrollbar', `${scrollbarWidth}px`);
+      bodyStyle = ['position', 'top', 'width'].map(property => [property, document.body.style.getPropertyValue(property), document.body.style.getPropertyPriority(property)]);
       root.classList.add('menu-open');
       document.body.classList.add('menu-open');
-      // Fixed-body lock covers touch browsers that scroll through overflow:hidden.
-      Object.assign(document.body.style, { position: 'fixed', top: `${-lockedY}px`, width: '100%' });
+      Object.assign(document.body.style, { position: 'fixed', top: `${-lockedY}px`, width: `${bodyWidth}px` });
+      try { menu.showModal(); } catch { finishMenuClose(); return; }
       openers.forEach(b => b.setAttribute('aria-expanded', 'true'));
-      $('[data-menu-close]', menu).focus();
-    }));
-    on($('[data-menu-close]'), 'click', () => closeMenu());
+      menu.scrollTop = 0;
+      menuClose.focus({ preventScroll: true });
+      // Classic scrollbars disappear from the page on lock. A short menu may
+      // have no scrollbar of its own; retain the opener's original right edge.
+      const menuScrollbar = menu.offsetWidth - menu.clientWidth;
+      menu.style.setProperty('--menu-scrollbar-gap', `${Math.max(0, scrollbarWidth - menuScrollbar)}px`);
+      const headerBottom = $('.menu__head', menu).getBoundingClientRect().bottom + (menu.dataset.menuOrigin === 'compact' ? 1 : parseFloat(getComputedStyle(menu).paddingTop));
+      menuCut = Math.max(0, 100 * (1 - headerBottom / menu.getBoundingClientRect().height));
+      animateMenu(true);
+    };
+    setMenuState('closed');
+    openers.forEach(button => on(button, 'click', () => openMenu(button)));
+    on(menuClose, 'click', () => closeMenu());
     on(menu, 'cancel', event => { event.preventDefault(); closeMenu(); });
+    const revealForInteraction = () => {
+      if (menuState === 'opening' || menuState === 'closing') {
+        cancelMenuMotion();
+        setMenuState('open');
+      }
+    };
+    // A keyboard user can reach the bottom CTA before the reveal edge. Expose
+    // the whole menu immediately rather than focus a visually clipped control.
+    on(menu, 'focusin', event => { if (event.target !== menuClose) revealForInteraction(); });
+    // Direct input can reveal immediately; a queued programmatic scrollTop reset
+    // from a previous visit must not cancel the next entry.
+    on(menu, 'wheel', revealForInteraction, { passive: true });
+    on(menu, 'touchmove', revealForInteraction, { passive: true });
+    // Covers native/external close without allowing an old queued close event to
+    // tear down a newly reopened dialog.
+    on(menu, 'close', () => { if (!menu.open) finishMenuClose(); });
     on(menu, 'keydown', event => {
+      if ([' ', 'PageDown', 'PageUp', 'Home', 'End', 'ArrowDown', 'ArrowUp'].includes(event.key)) revealForInteraction();
       if (event.key !== 'Tab') return;
       const controls = $$('a[href],button:not([disabled])', menu).filter(control => control.getClientRects().length);
       const index = controls.indexOf(document.activeElement);
       event.preventDefault();
       controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length].focus();
     });
-    on(desktop, 'change', () => { closeMenu(true); layoutNeeded = true; requestTick(); });
+    on(desktop, 'change', () => { closeMenu(true, true); layoutNeeded = true; requestTick(); });
+    on(motion, 'change', settleMenu);
+    on(document, 'visibilitychange', () => { if (document.hidden) closeMenu(true, true); });
 
     // href/hash navigation stays native. Focus follows closure and hash assignment,
     // without a timeout or animation-completion race.
@@ -491,6 +604,12 @@
       requestTick();
     }, { passive: true });
     on(window, 'resize', () => {
+      // Width changes can replace the opener or reflow its coordinates. Settle
+      // immediately; height-only browser toolbar changes leave the modal intact.
+      if (menu.open) {
+        if (innerWidth !== menuWidth) closeMenu(true, true);
+        else settleMenu();
+      }
       // Retain a fully uncovered footer across responsive reflow without moving
       // readers who were part-way through the page before the resize.
       preservePageEnd ||= atPageEnd && !touchGesture;
@@ -509,7 +628,7 @@
     root.classList.add('js');
     paint();
     dispose = () => {
-      closeMenu(false);
+      closeMenu(false, true);
       lifecycle.abort();
       cleanups.forEach(cleanup => cleanup());
       cancelAnimationFrame(frame);
