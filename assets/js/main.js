@@ -31,8 +31,12 @@
       window.scrollTo({ top: lockedY, behavior: 'instant' });
       openers.forEach(button => button.setAttribute('aria-expanded', 'false'));
       if (restore) {
-        const fallback = desktop.matches ? $('.site-header__logo') : openers.find(button => button.getClientRects().length && !button.closest('[inert]'));
-        (opener?.getClientRects().length && !opener.closest('[inert]') ? opener : fallback)?.focus({ preventScroll: true });
+        const returnTarget = [opener, $('.nav-bar__logo'), $('.site-header__logo'), ...openers].find(control => {
+          if (!control?.getClientRects().length || control.closest('[inert]')) return false;
+          const rect = control.getBoundingClientRect();
+          return rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
+        });
+        returnTarget?.focus({ preventScroll: true });
       }
       requestTick();
     };
@@ -40,6 +44,7 @@
       if (menu.open) return;
       opener = button;
       lockedY = scrollY;
+      menu.dataset.menuOrigin = button.closest('[data-nav-bar]') ? 'compact' : 'full';
       menu.showModal();
       root.classList.add('menu-open');
       document.body.classList.add('menu-open');

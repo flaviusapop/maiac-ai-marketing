@@ -169,6 +169,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .menu-toggle {
   display: none;
   background: none; border: 1px solid var(--ink); padding: 8px 14px; min-height: 40px;
+  min-inline-size: calc(5ch + 30px); justify-content: center;
   font-size: 15px; font-weight: 500; cursor: pointer;
 }
 
@@ -234,7 +235,15 @@ button, input, textarea { font: inherit; color: inherit; }
 .menu[open] { display: flex; }
 .menu::backdrop { background: var(--paper); }
 .menu { overscroll-behavior: contain; }
-.menu__head { display: flex; justify-content: space-between; align-items: center; }
+.menu__head {
+  display: flex; justify-content: space-between; align-items: center;
+  inline-size: 100%; max-inline-size: var(--max); margin-inline: auto;
+}
+/* Keep the overlay header in the same pose as the control that opened it. */
+.menu__head img { inline-size: 87px; }
+.menu[data-menu-origin="compact"] { padding-block-start: 0; }
+.menu[data-menu-origin="compact"] .menu__head { min-block-size: calc(var(--bar-h) - 1px); }
+.menu[data-menu-origin="compact"] .menu__head img { inline-size: 70px; }
 .menu .menu-toggle { display: inline-flex; }
 .menu__list { list-style: none; padding: 0; display: grid; gap: 8px; font-size: clamp(2rem, 9vw, 3rem); line-height: 1.1; letter-spacing: -0.02em; }
 .menu .btn { align-self: flex-start; margin-top: auto; }
