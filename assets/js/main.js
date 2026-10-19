@@ -17,7 +17,7 @@
     const openers = $$('[data-menu-open]'), navLinks = $$('[data-nav-link]'), sections = $$('[data-section]');
     const progress = $('[data-progress]'), mark = $('[data-footer-mark]');
     const mainMark = $('.site-footer__mark-img', mark);
-    let frame = 0, layoutNeeded = true, opener = null, lockedY = 0, lastActive = null;
+    let frame = 0, layoutNeeded = true, pageStateNeeded = true, opener = null, lockedY = 0, lastActive = null;
     let atPageEnd = false, preservePageEnd = false;
 
     // Native dialog supplies modal containment, inert background and top-layer coverage.
@@ -157,7 +157,7 @@
     let artWidth = 0, artHeight = 0, artDpr = 1, footerHeight = 1, geometry = [];
     let contours = null, contoursLoading = false, preparedPaths = [], pathsDirty = true, flowContext = null;
     let pointerPoint = null, pointerInput = null, velocityX = 0, velocityY = 0;
-    let flowTime = 0, flowActive = false;
+    let flowTime = 0, flowActive = false, touchTarget = null;
     let touchGesture = null, touchBlocked = false, touchMomentumUntil = 0;
     let lastTouchPosition = null, lastDirectTouchTime = -Infinity;
     const boundedScrollY = () => Math.max(0, Math.min(scrollY, root.scrollHeight - innerHeight));
@@ -165,20 +165,28 @@
     const resetFlow = () => {
       flowX.fill(0); flowY.fill(0);
       pointerPoint = null; pointerInput = null; velocityX = 0; velocityY = 0;
+      touchTarget = null;
       flowTime = 0; flowActive = false;
       mark.classList.remove('is-flowing');
     };
     const measureArt = () => {
       const rect = mark.getBoundingClientRect();
+      const copyCount = desktop.matches ? 7 : 3;
+      const nextDpr = Math.min(devicePixelRatio || 1, 2);
+      // Mobile browser chrome can resize the viewport without changing the art.
+      // Keep the current field unless the artwork geometry actually changes.
+      if (Math.abs(rect.width - artWidth) < 0.1 && Math.abs(rect.height - artHeight) < 0.1 &&
+        nextDpr === artDpr && geometry.length === copyCount + 1) return;
       artWidth = rect.width; artHeight = rect.height;
-      artDpr = Math.min(devicePixelRatio || 1, 2);
+      artDpr = nextDpr;
       // Fill the footer vertically without changing the approved horizontal rhythm
       // when the viewport narrows. The SVG viewport itself keeps its native ratio.
       const sourceWidth = artHeight * 847 / 537;
       const mainWidth = artWidth / 3 * 847 / 537;
       let x = 0;
-      geometry = [...copies].reverse().map((image, i) => {
-        const width = mainWidth * 0.5 * 0.62 ** (6 - i);
+      copies.forEach((copy, i) => { copy.hidden = i >= copyCount; });
+      geometry = copies.slice(0, copyCount).reverse().map((image, i) => {
+        const width = mainWidth * 0.5 * 0.62 ** (copyCount - 1 - i);
         const item = { image, x, width };
         x += width;
         return item;
@@ -229,23 +237,49 @@
       if (!flowActive) return;
       if (document.hidden || !preparePaths()) { resetFlow(); return; }
       const elapsed = Math.max(1, Math.min(64, now - flowTime));
-      const decay = Math.exp(-elapsed / 230);
+      const touchDriven = pointerInput ? pointerInput.kind !== 'pointer' : Boolean(touchTarget);
+      const decay = Math.exp(-elapsed / (touchDriven ? 330 : 230));
       flowTime = now;
       let energy = 0;
       for (let i = 0; i < count; i++) {
         flowX[i] *= decay; flowY[i] *= decay;
       }
+      let force = null;
       if (pointerInput) {
         // Consume movement once per frame, independent of mouse polling frequency.
         const { x, y, dx, dy, start, time } = pointerInput;
         const dt = Math.max(8, Math.min(80, time - start));
-        const smoothing = 1 - Math.exp(-elapsed / 24);
+        const smoothing = 1 - Math.exp(-(touchDriven ? dt : elapsed) / (touchDriven ? 55 : 24));
         velocityX += (dx / dt - velocityX) * smoothing;
         velocityY += (dy / dt - velocityY) * smoothing;
-        const targetX = Math.min(160, artWidth * 0.115) * Math.tanh(velocityX * 0.85);
-        const targetY = 36 * Math.tanh(velocityY * 0.65);
-        const rx = Math.max(90, artWidth * 0.17), ry = Math.max(40, artHeight * 0.24);
-        const response = 1 - Math.exp(-elapsed / 40);
+        if (touchDriven) {
+          touchTarget = { x: touchTarget?.x ?? x, y: touchTarget?.y ?? y, toX: x, toY: y,
+            vx: velocityX, vy: velocityY, time };
+        } else {
+          touchTarget = null;
+          force = { x, y, vx: velocityX, vy: velocityY, strength: 1 };
+        }
+        pointerInput = null;
+      }
+      if (touchTarget) {
+        // Bridge sparse touch/scroll events for at most80ms. A stationary finger
+        // cannot sustain motion; after this short bridge the field only settles.
+        const age = Math.max(0, now - touchTarget.time);
+        if (age < 80) {
+          const follow = 1 - Math.exp(-elapsed / 32);
+          touchTarget.x += (touchTarget.toX - touchTarget.x) * follow;
+          touchTarget.y += (touchTarget.toY - touchTarget.y) * follow;
+          force = { x: touchTarget.x, y: touchTarget.y, vx: touchTarget.vx, vy: touchTarget.vy,
+            strength: Math.max(0, 1 - age / 80) };
+        }
+      }
+      if (force) {
+        const { x, y, vx, vy, strength } = force;
+        const targetX = Math.min(160, artWidth * (touchDriven ? 0.095 : 0.115)) * Math.tanh(vx * 0.85) * strength;
+        const targetY = (touchDriven ? 30 : 36) * Math.tanh(vy * 0.65) * strength;
+        const rx = Math.max(touchDriven ? 110 : 90, artWidth * (touchDriven ? 0.24 : 0.17));
+        const ry = Math.max(40, artHeight * (touchDriven ? 0.29 : 0.24));
+        const response = 1 - Math.exp(-elapsed / (touchDriven ? 70 : 40));
         for (let row = 1; row < rows; row++) {
           const py = row / rows * artHeight;
           for (let col = 1; col < columns; col++) {
@@ -256,10 +290,14 @@
             flowY[i] += (targetY - flowY[i]) * blend;
           }
         }
-        pointerInput = null;
       }
       for (let i = 0; i < count; i++) energy = Math.max(energy, Math.abs(flowX[i]), Math.abs(flowY[i]));
-      if (energy < 0.12) { resetFlow(); return; }
+      if (energy < 0.12) {
+        // Let a fresh, gentle gesture build a field across sparse input frames.
+        // The bridge expires after80ms, so this cannot create an idle loop.
+        if (touchDriven && force) { requestTick(false); return; }
+        resetFlow(); return;
+      }
       const ctx = flowContext;
       ctx.setTransform(artDpr, 0, 0, artDpr, 0, 0);
       ctx.fillStyle = '#0b0b0b'; ctx.fillRect(0, 0, artWidth, artHeight);
@@ -278,7 +316,7 @@
         ctx.fill('nonzero');
       }
       mark.classList.add('is-flowing');
-      requestTick();
+      requestTick(false);
     };
     const queueFlow = ({ x, y, dx, dy, start, time, kind }) => {
       if (Math.abs(dx) + Math.abs(dy) <= 0.05 || menu.open || document.hidden) return false;
@@ -291,7 +329,7 @@
       };
       if (!flowActive) flowTime = time;
       flowActive = true;
-      requestTick();
+      requestTick(false);
       return true;
     };
     const visibleArtPoint = (clientX, clientY, clamp = false) => {
@@ -397,6 +435,10 @@
       frame = 0;
       if (menu.open) { stopTouch(); return; }
       if (layoutNeeded) measure();
+      // Deformation/settling frames do not need header, section or curtain reads.
+      // Real scroll/layout/menu events still refresh all page state immediately.
+      if (!pageStateNeeded) { paintFlow(now); return; }
+      pageStateNeeded = false;
       if (preservePageEnd) {
         preservePageEnd = false;
         window.scrollTo({ top: root.scrollHeight, behavior: 'instant' });
@@ -435,7 +477,10 @@
       if (footerRect.bottom <= 0 || footerRect.top >= innerHeight || (!uncovered && root.classList.contains('footer-reveal'))) resetFlow();
       else paintFlow(now);
     };
-    function requestTick() { if (!frame) frame = requestAnimationFrame(paint); }
+    function requestTick(updatePage = true) {
+      if (updatePage) pageStateNeeded = true;
+      if (!frame) frame = requestAnimationFrame(paint);
+    }
     on(window, 'scroll', () => {
       const now = performance.now(), top = boundedScrollY(), delta = top - lastScrollTop;
       if ((touchGesture || now < touchMomentumUntil) && lastTouchPosition && !touchBlocked && !menu.open && !document.hidden && now - lastDirectTouchTime > 32 && Math.abs(delta) < Math.min(500, innerHeight * 0.75)) {

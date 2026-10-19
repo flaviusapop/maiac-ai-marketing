@@ -20,6 +20,8 @@ Then open http://localhost:8000/.
 
 The repeated Ma artwork fills the footer across window sizes and responds directly to mouse, pen and single-finger movement, then settles. There is no autoplay. By project direction, this direct interaction remains active when reduced motion is requested; smooth scrolling, work-image zoom and decorative transitions still honor that preference. On touch devices, a single-finger drag or native finger scrolling drives the artwork. Scrolling, link taps and pinch zoom keep their browser behavior; multi-finger gestures suspend deformation. Short windows use a normal-flow footer.
 
+Below900px, four Ma marks replace the eight-mark desktop arrangement. Touch input has a short bounded smoothing bridge and a softer settling response; browser-toolbar height changes retain the current deformation when the artwork geometry is unchanged.
+
 The contour data is derived from the supplied Ma SVG and adds no runtime dependency.
 
 ## Contact and outstanding configuration
