@@ -284,7 +284,7 @@
     };
     const measureArt = () => {
       const rect = mark.getBoundingClientRect();
-      const copyCount = desktop.matches ? 7 : 3;
+      const copyCount = desktop.matches ? 7 : 2;
       const nextDpr = Math.min(devicePixelRatio || 1, 2);
       // Mobile browser chrome can resize the viewport without changing the art.
       // Keep the current field unless the artwork geometry actually changes.
@@ -295,7 +295,8 @@
       // Fill the footer vertically without changing the approved horizontal rhythm
       // when the viewport narrows. The SVG viewport itself keeps its native ratio.
       const sourceWidth = artHeight * 847 / 537;
-      const mainWidth = artWidth / 3 * 847 / 537;
+      // Three mobile marks share the full width, retaining the narrowing rhythm.
+      const mainWidth = desktop.matches ? artWidth / 3 * 847 / 537 : artWidth / (1 + 0.5 + 0.5 * 0.62);
       let x = 0;
       copies.forEach((copy, i) => { copy.hidden = i >= copyCount; });
       geometry = copies.slice(0, copyCount).reverse().map((image, i) => {
