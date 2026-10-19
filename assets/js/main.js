@@ -146,9 +146,8 @@
       return copy;
     });
     mark.classList.add('is-accordion');
-    // User-selected exception: direct cursor motion stays active under reduced
+    // User-selected exception: direct pointer/touch motion stays active under reduced
     // motion. Other page effects continue to honor the motion media query.
-    const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
     const flowCanvas = document.createElement('canvas');
     flowCanvas.className = 'site-footer__flow';
     flowCanvas.setAttribute('aria-hidden', 'true');
@@ -159,6 +158,10 @@
     let contours = null, contoursLoading = false, preparedPaths = [], pathsDirty = true, flowContext = null;
     let pointerPoint = null, pointerInput = null, velocityX = 0, velocityY = 0;
     let flowTime = 0, flowActive = false;
+    let touchGesture = null, touchBlocked = false, touchMomentumUntil = 0;
+    let lastTouchPosition = null, lastDirectTouchTime = -Infinity;
+    const boundedScrollY = () => Math.max(0, Math.min(scrollY, root.scrollHeight - innerHeight));
+    let lastScrollTop = boundedScrollY(), lastScrollTime = performance.now();
     const resetFlow = () => {
       flowX.fill(0); flowY.fill(0);
       pointerPoint = null; pointerInput = null; velocityX = 0; velocityY = 0;
@@ -192,7 +195,7 @@
       resetFlow();
     };
     const loadContours = () => {
-      if (contours || contoursLoading || !finePointer.matches) return;
+      if (contours || contoursLoading) return;
       contoursLoading = true;
       // Derived from the shipped SVG offline, so moving the mouse never has to
       // sample SVG geometry or import a graphics library.
@@ -224,7 +227,7 @@
     // No WebGL, image readback, external code, scroll interception or idle render loop.
     const paintFlow = now => {
       if (!flowActive) return;
-      if (!finePointer.matches || document.hidden || !preparePaths()) { resetFlow(); return; }
+      if (document.hidden || !preparePaths()) { resetFlow(); return; }
       const elapsed = Math.max(1, Math.min(64, now - flowTime));
       const decay = Math.exp(-elapsed / 230);
       flowTime = now;
@@ -239,7 +242,7 @@
         const smoothing = 1 - Math.exp(-elapsed / 24);
         velocityX += (dx / dt - velocityX) * smoothing;
         velocityY += (dy / dt - velocityY) * smoothing;
-        const targetX = 160 * Math.tanh(velocityX * 0.85);
+        const targetX = Math.min(160, artWidth * 0.115) * Math.tanh(velocityX * 0.85);
         const targetY = 36 * Math.tanh(velocityY * 0.65);
         const rx = Math.max(90, artWidth * 0.17), ry = Math.max(40, artHeight * 0.24);
         const response = 1 - Math.exp(-elapsed / 40);
@@ -277,33 +280,93 @@
       mark.classList.add('is-flowing');
       requestTick();
     };
+    const queueFlow = ({ x, y, dx, dy, start, time, kind }) => {
+      if (Math.abs(dx) + Math.abs(dy) <= 0.05 || menu.open || document.hidden) return false;
+      // Native scroll is only a fallback; never add its force to a fresh finger sample.
+      if (kind === 'scroll' && pointerInput && pointerInput.kind !== 'scroll') return false;
+      if (pointerInput?.kind !== kind) pointerInput = null;
+      pointerInput = {
+        x, y, dx: (pointerInput?.dx || 0) + dx, dy: (pointerInput?.dy || 0) + dy,
+        start: pointerInput?.start ?? start, time, kind,
+      };
+      if (!flowActive) flowTime = time;
+      flowActive = true;
+      requestTick();
+      return true;
+    };
+    const visibleArtPoint = (clientX, clientY, clamp = false) => {
+      const rect = mark.getBoundingClientRect();
+      const top = Math.max(0, rect.top, root.classList.contains('footer-reveal') ? page.getBoundingClientRect().bottom : 0);
+      const bottom = Math.min(innerHeight, rect.bottom);
+      if (bottom <= top || (!clamp && (clientX < rect.left || clientX > rect.right || clientY < top || clientY > bottom))) return null;
+      return {
+        x: Math.max(0, Math.min(artWidth, clientX - rect.left)),
+        y: Math.max(top, Math.min(bottom, clientY)) - rect.top,
+      };
+    };
+    const stopTouch = (reset = true, blocked = false) => {
+      touchGesture = null; touchMomentumUntil = 0; touchBlocked = blocked;
+      lastTouchPosition = null; lastDirectTouchTime = -Infinity;
+      if (reset) resetFlow();
+    };
     on(footer, 'pointermove', event => {
-      if (event.pointerType !== 'mouse' || !finePointer.matches || document.hidden) return;
+      if (!['mouse', 'pen'].includes(event.pointerType) || touchGesture || document.hidden) return;
       const rect = mark.getBoundingClientRect(), now = performance.now();
       const x = event.clientX - rect.left, y = event.clientY - rect.top;
       if (x < 0 || x > artWidth || y < 0 || y > artHeight) { pointerPoint = null; return; }
       if (pointerPoint) {
         const dx = x - pointerPoint.x, dy = y - pointerPoint.y;
-        if (Math.abs(dx) + Math.abs(dy) > 0.05) {
-          pointerInput = {
-            x, y, dx: (pointerInput?.dx || 0) + dx, dy: (pointerInput?.dy || 0) + dy,
-            start: pointerInput?.start ?? pointerPoint.time, time: now,
-          };
-          if (!flowActive) flowTime = now;
-          flowActive = true; requestTick();
-        }
+        queueFlow({ x, y, dx, dy, start: pointerPoint.time, time: now, kind: 'pointer' });
       }
       pointerPoint = { x, y, time: now };
     }, { passive: true });
     ['pointerleave', 'pointercancel'].forEach(type => on(footer, type, () => { pointerPoint = null; }));
-    on(finePointer, 'change', () => { resetFlow(); requestTick(); });
+    // Passive TouchEvents survive native pan's pointercancel, so scrolling and
+    // pinch zoom keep their browser behavior. No finger capture or touch-action override.
+    on(document, 'touchstart', event => {
+      // Warm the small artwork data on the first gesture, before a fast fling
+      // reaches the footer on a slower mobile connection.
+      if (event.touches.length === 1) loadContours();
+      if (event.touches.length !== 1 || touchBlocked) { stopTouch(true, true); return; }
+      stopTouch(false);
+      pointerPoint = null;
+      preservePageEnd = false;
+      if (menu.open || document.hidden || event.target?.closest?.('a,button,input,textarea,select,[contenteditable],[data-team-scroller]')) return;
+      const touch = event.touches[0], now = performance.now();
+      touchGesture = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: now };
+      lastTouchPosition = { x: touch.clientX, y: touch.clientY };
+      lastScrollTop = boundedScrollY(); lastScrollTime = now;
+    }, { passive: true });
+    on(document, 'touchmove', event => {
+      if (event.touches.length !== 1 || touchBlocked) { stopTouch(true, true); return; }
+      if (!touchGesture || menu.open || document.hidden) return;
+      const touch = Array.from(event.touches).find(item => item.identifier === touchGesture.id);
+      if (!touch) { stopTouch(); return; }
+      const now = performance.now(), point = visibleArtPoint(touch.clientX, touch.clientY);
+      if (point && queueFlow({ ...point, dx: touch.clientX - touchGesture.x, dy: touch.clientY - touchGesture.y,
+        start: touchGesture.time, time: now, kind: 'touch' })) {
+        lastDirectTouchTime = now;
+      }
+      touchGesture = { ...touchGesture, x: touch.clientX, y: touch.clientY, time: now };
+      lastTouchPosition = { x: touch.clientX, y: touch.clientY };
+    }, { passive: true });
+    on(document, 'touchend', event => {
+      if (touchBlocked) { if (!event.touches.length) stopTouch(); return; }
+      if (touchGesture && !Array.from(event.touches).some(touch => touch.identifier === touchGesture.id)) {
+        touchGesture = null;
+        touchMomentumUntil = performance.now() + 900;
+      }
+    }, { passive: true });
+    on(document, 'touchcancel', event => stopTouch(true, event.touches.length > 0), { passive: true });
+    on(document, 'keydown', () => stopTouch());
+    on(document, 'click', event => { if (event.target?.closest?.('a,button')) stopTouch(); });
     on(mainMark, 'load', () => { layoutNeeded = true; requestTick(); });
     on(document, 'visibilitychange', () => {
-      resetFlow();
+      stopTouch();
       if (document.hidden) { cancelAnimationFrame(frame); frame = 0; }
       else requestTick();
     });
-    cleanups.push(() => { resetFlow(); copies.forEach(copy => copy.remove()); flowCanvas.remove(); mark.classList.remove('is-accordion'); mainMark.style.removeProperty('transform'); mainMark.style.removeProperty('inline-size'); });
+    cleanups.push(() => { stopTouch(); copies.forEach(copy => copy.remove()); flowCanvas.remove(); mark.classList.remove('is-accordion'); mainMark.style.removeProperty('transform'); mainMark.style.removeProperty('inline-size'); });
     const measure = () => {
       // Both modes use the same natural height, so a short window cannot oscillate.
       const height = footer.getBoundingClientRect().height, fits = height <= innerHeight;
@@ -332,7 +395,7 @@
     };
     const paint = (now = performance.now()) => {
       frame = 0;
-      if (menu.open) { resetFlow(); return; }
+      if (menu.open) { stopTouch(); return; }
       if (layoutNeeded) measure();
       if (preservePageEnd) {
         preservePageEnd = false;
@@ -368,15 +431,26 @@
       const rest = motion.matches ? 0 : 1 - p * p * (3 - 2 * p);
       footer.style.setProperty('--reveal-rest', String(rest));
       footer.style.setProperty('--reveal-progress', String(p));
-      if (!uncovered && root.classList.contains('footer-reveal')) resetFlow();
+      const footerRect = footer.getBoundingClientRect();
+      if (footerRect.bottom <= 0 || footerRect.top >= innerHeight || (!uncovered && root.classList.contains('footer-reveal'))) resetFlow();
       else paintFlow(now);
     };
     function requestTick() { if (!frame) frame = requestAnimationFrame(paint); }
-    on(window, 'scroll', requestTick, { passive: true });
+    on(window, 'scroll', () => {
+      const now = performance.now(), top = boundedScrollY(), delta = top - lastScrollTop;
+      if ((touchGesture || now < touchMomentumUntil) && lastTouchPosition && !touchBlocked && !menu.open && !document.hidden && now - lastDirectTouchTime > 32 && Math.abs(delta) < Math.min(500, innerHeight * 0.75)) {
+        const point = visibleArtPoint(lastTouchPosition.x, lastTouchPosition.y, true);
+        if (point) queueFlow({ ...point, dx: 0, dy: -delta, start: lastScrollTime, time: now, kind: 'scroll' });
+      }
+      lastScrollTop = top; lastScrollTime = now;
+      requestTick();
+    }, { passive: true });
     on(window, 'resize', () => {
       // Retain a fully uncovered footer across responsive reflow without moving
       // readers who were part-way through the page before the resize.
-      preservePageEnd ||= atPageEnd;
+      preservePageEnd ||= atPageEnd && !touchGesture;
+      touchMomentumUntil = 0;
+      lastScrollTop = boundedScrollY(); lastScrollTime = performance.now();
       layoutNeeded = true;
       requestTick();
     });
