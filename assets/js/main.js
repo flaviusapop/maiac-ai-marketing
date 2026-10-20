@@ -12,10 +12,10 @@
     const lifecycle = new AbortController();
     const cleanups = [];
     const on = (target, event, listener, options = {}) => target?.addEventListener(event, listener, { ...options, signal: lifecycle.signal });
-    const header = $('[data-site-header]'), bar = $('[data-nav-bar]');
+    const header = $('[data-site-header]');
     const page = $('[data-page]'), footer = $('[data-footer]'), menu = $('[data-menu]');
     const openers = $$('[data-menu-open]'), navLinks = $$('[data-nav-link]'), sections = $$('[data-section]');
-    const progress = $('[data-progress]'), mark = $('[data-footer-mark]');
+    const mark = $('[data-footer-mark]');
     const mainMark = $('.site-footer__mark-img', mark);
     let frame = 0, layoutNeeded = true, pageStateNeeded = true, opener = null, lockedY = 0, lastActive = null;
     let atPageEnd = false, preservePageEnd = false;
@@ -31,7 +31,7 @@
       menuAnimations = [];
     };
     const restoreOpener = () => {
-      const returnTarget = [opener, $('.nav-bar__logo'), $('.site-header__logo'), ...openers].find(control => {
+      const returnTarget = [opener, $('.site-header__logo'), ...openers].find(control => {
         if (!control?.getClientRects().length || control.closest('[inert]')) return false;
         const rect = control.getBoundingClientRect();
         return rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
@@ -119,7 +119,6 @@
       opener = button;
       lockedY = scrollY;
       menuWidth = innerWidth;
-      menu.dataset.menuOrigin = button.closest('[data-nav-bar]') ? 'compact' : 'full';
       // Lock before native autofocus can scroll anything. Keep the current body
       // width while the viewport scrollbar is absent, avoiding page reflow.
       const bodyWidth = document.body.getBoundingClientRect().width;
@@ -142,7 +141,7 @@
       // have no scrollbar of its own; retain the opener's original right edge.
       const menuScrollbar = menu.offsetWidth - menu.clientWidth;
       menu.style.setProperty('--menu-scrollbar-gap', `${Math.max(0, scrollbarWidth - menuScrollbar)}px`);
-      const headerBottom = $('.menu__head', menu).getBoundingClientRect().bottom + (menu.dataset.menuOrigin === 'compact' ? 1 : parseFloat(getComputedStyle(menu).paddingTop));
+      const headerBottom = $('.menu__head', menu).getBoundingClientRect().bottom + parseFloat(getComputedStyle(menu).paddingTop);
       menuCut = Math.max(0, 100 * (1 - headerBottom / menu.getBoundingClientRect().height));
       animateMenu(true);
     };
@@ -187,7 +186,7 @@
       if (!target) return;
       const fromMenu = menu.contains(link);
       if (fromMenu) closeMenu(false);
-      if (fromMenu || link.hasAttribute('data-cta')) {
+      if (fromMenu || link.hasAttribute('data-nav-link') || link.hasAttribute('data-cta')) {
         event.preventDefault();
         if (location.hash !== link.hash) location.hash = link.hash;
         else target.scrollIntoView({ block: 'start' });
@@ -197,11 +196,6 @@
         if (link.hasAttribute('data-cta')) focusTarget.scrollIntoView({ block: 'center', behavior: motion.matches ? 'instant' : 'smooth' });
       }
     });
-    // Uncover the fixed footer as soon as a keyboard user focuses one of its links.
-    on(footer, 'focusin', () => {
-      if (root.classList.contains('footer-reveal')) window.scrollTo({ top: root.scrollHeight, behavior: 'instant' });
-    });
-
     const team = $('[data-team-scroller]');
     let pointer = null, wheelTimer = 0;
     if (team) {
@@ -520,6 +514,8 @@
     });
     cleanups.push(() => { stopTouch(); copies.forEach(copy => copy.remove()); flowCanvas.remove(); mark.classList.remove('is-accordion'); mainMark.style.removeProperty('transform'); mainMark.style.removeProperty('inline-size'); });
     const measure = () => {
+      // Reserve the fixed header's actual size for initial layout and hash targets.
+      root.style.setProperty('--header-h', `${header.getBoundingClientRect().height}px`);
       // Both modes use the same natural height, so a short window cannot oscillate.
       const height = footer.getBoundingClientRect().height, fits = height <= innerHeight;
       footerHeight = height;
@@ -527,22 +523,6 @@
       root.classList.toggle('no-footer-reveal', !fits);
       root.style.setProperty('--footer-h', `${height}px`);
       measureArt();
-      // Text-only zoom can overflow a desktop bar without changing viewport width.
-      // Measure an inert natural-width copy independently of the condensed mode.
-      let condensed = false;
-      if (desktop.matches) {
-        const probe = $('.nav-bar__inner', bar).cloneNode(true);
-        probe.inert = true;
-        probe.setAttribute('aria-hidden', 'true');
-        Object.assign(probe.style, { position: 'absolute', visibility: 'hidden', width: 'max-content', maxWidth: 'none', height: 'auto', pointerEvents: 'none' });
-        $('.nav-bar__nav', probe).style.display = 'block';
-        $('.nav-bar__cta', probe).style.display = 'inline-flex';
-        $('.nav-bar__toggle', probe).style.display = 'none';
-        bar.append(probe);
-        condensed = probe.getBoundingClientRect().width > innerWidth;
-        probe.remove();
-      }
-      bar.classList.toggle('is-condensed', condensed);
       layoutNeeded = false;
     };
     const paint = (now = performance.now()) => {
@@ -558,13 +538,6 @@
         window.scrollTo({ top: root.scrollHeight, behavior: 'instant' });
       }
       atPageEnd = root.scrollHeight - innerHeight - scrollY <= 2;
-      const visible = header.getBoundingClientRect().bottom <= 0;
-      if (bar.classList.contains('is-visible') !== visible) {
-        bar.classList.toggle('is-visible', visible);
-        bar.inert = !visible;
-        bar.setAttribute('aria-hidden', String(!visible));
-        $$('a,button', bar).forEach(control => visible ? control.removeAttribute('tabindex') : control.tabIndex = -1);
-      }
       // Latest start above 35% stays active through continuation blocks and gaps.
       const line = innerHeight * 0.35;
       const active = sections.filter(section => section.getBoundingClientRect().top <= line).at(-1)?.id || '';
@@ -577,8 +550,6 @@
           else link.removeAttribute('aria-current');
         });
       }
-      const max = root.scrollHeight - innerHeight;
-      progress.style.setProperty('--progress', String(max > 0 ? Math.max(0, Math.min(1, scrollY / max)) : 0));
       const height = footerHeight;
       const pageBottom = page.getBoundingClientRect().bottom;
       if (pageBottom < innerHeight + 600) loadContours();
@@ -623,7 +594,7 @@
     on(motion, 'change', requestTick);
     on(document.fonts, 'loadingdone', () => { layoutNeeded = true; requestTick(); });
     const observer = new ResizeObserver(() => { layoutNeeded = true; requestTick(); });
-    [footer, mark, page, header, $('.nav-bar__inner'), $('.nav-bar__list')].forEach(element => observer.observe(element));
+    [footer, mark, page, header].forEach(element => observer.observe(element));
     cleanups.push(() => observer.disconnect());
     $('[data-year]').textContent = new Date().getFullYear();
     root.classList.add('js');
@@ -634,9 +605,6 @@
       cleanups.forEach(cleanup => cleanup());
       cancelAnimationFrame(frame);
       root.classList.remove('js', 'footer-reveal');
-      bar.inert = true;
-      bar.setAttribute('aria-hidden', 'true');
-      bar.classList.remove('is-visible');
     };
   };
   try { init(); } catch (error) {

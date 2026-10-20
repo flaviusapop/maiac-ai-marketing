@@ -20,40 +20,39 @@
 
   <link rel="preload" href="assets/fonts/hanken-grotesk-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/hanken-grotesk-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="assets/css/main.css?v=aacef5c6f784">
+  <link rel="stylesheet" href="assets/css/main.css?v=3b8979c5c247">
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" sizes="180x180">
-  <script src="assets/js/main.js?v=d62ed10fb18a" defer onerror="document.documentElement.classList.remove('js')"></script>
-  <script src="assets/js/contact.js" defer></script>
+  <script src="assets/js/main.js?v=737f66ea1d09" defer onerror="document.documentElement.classList.remove('js')"></script>
+  <script src="assets/js/contact.js?v=dc3c197ed058" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- Compact bar: hidden at the top of the page, slides in once the full header scrolls away. -->
-  <div class="nav-bar" data-nav-bar aria-hidden="true" inert>
-    <div class="nav-bar__inner">
-      <a class="nav-bar__logo" href="#top" tabindex="-1"><img src="assets/img/maiac-logo.svg" alt="Maiac" width="70" height="24"></a>
-      <nav class="nav-bar__nav" aria-label="Sections">
-        <ul class="nav-bar__list">
-          <li><a href="#approach" data-nav-link tabindex="-1">Approach</a></li>
-          <li><a href="#work" data-nav-link tabindex="-1">Work</a></li>
-          <li><a href="#services" data-nav-link tabindex="-1">Services</a></li>
-          <li><a href="#why-maiac" data-nav-link tabindex="-1">Why Maiac</a></li>
-          <li><a href="#team" data-nav-link tabindex="-1">Team</a></li>
-          <li><a href="#contact" data-nav-link tabindex="-1">Contact</a></li>
-        </ul>
-      </nav>
-      <a class="btn btn--primary btn--small nav-bar__cta" href="#contact" data-cta tabindex="-1">Book a consultancy session</a>
-      <button class="menu-toggle nav-bar__toggle" type="button" data-menu-open aria-controls="menu" aria-expanded="false" tabindex="-1">Menu</button>
+  <!-- One persistent transparent header. Desktop sections remain vertical while scrolling. -->
+  <header class="site-header" data-site-header>
+    <nav class="site-header__nav" aria-label="Sections">
+      <ul class="site-header__list">
+        <li><a href="#approach" data-nav-link>Approach</a></li>
+        <li><a href="#work" data-nav-link>Work</a></li>
+        <li><a href="#services" data-nav-link>Services</a></li>
+        <li><a href="#why-maiac" data-nav-link>Why Maiac</a></li>
+        <li><a href="#team" data-nav-link>Team</a></li>
+        <li><a href="#contact" data-nav-link>Contact</a></li>
+      </ul>
+    </nav>
+    <a class="site-header__logo" href="#top"><img src="assets/img/maiac-logo.svg" alt="Maiac" width="87" height="30"></a>
+    <div class="site-header__actions">
+      <a class="text-link" href="#contact" data-cta>Book a consultancy session</a>
+      <button class="menu-toggle site-header__toggle" type="button" data-menu-open aria-controls="menu" aria-expanded="false">Menu</button>
     </div>
-    <div class="nav-bar__progress" aria-hidden="true"><span data-progress></span></div>
-  </div>
+  </header>
 
   <!-- Mobile menu overlay -->
   <dialog class="menu" id="menu" data-menu aria-label="Site navigation">
     <div class="menu__head">
-      <img src="assets/img/maiac-logo.svg" alt="" width="70" height="24">
+      <img src="assets/img/maiac-logo.svg" alt="" width="87" height="30">
       <button class="menu-toggle" type="button" data-menu-close autofocus>Close</button>
     </div>
     <nav aria-label="Sections">
@@ -70,23 +69,7 @@
   </dialog>
 
   <div class="page" data-page id="top">
-    <header class="site-header" data-site-header>
-      <nav class="site-header__nav" aria-label="Sections">
-        <ul class="site-header__list">
-          <li><a href="#approach" data-nav-link>Approach</a></li>
-          <li><a href="#work" data-nav-link>Work</a></li>
-          <li><a href="#services" data-nav-link>Services</a></li>
-          <li><a href="#why-maiac" data-nav-link>Why Maiac</a></li>
-          <li><a href="#team" data-nav-link>Team</a></li>
-          <li><a href="#contact" data-nav-link>Contact</a></li>
-        </ul>
-      </nav>
-      <a class="site-header__logo" href="#top"><img src="assets/img/maiac-logo.svg" alt="Maiac" width="87" height="30"></a>
-      <div class="site-header__actions">
-        <a class="text-link" href="#contact" data-cta>Book a consultancy session</a>
-        <button class="menu-toggle site-header__toggle" type="button" data-menu-open aria-controls="menu" aria-expanded="false">Menu</button>
-      </div>
-    </header>
+
 
     <main id="main" tabindex="-1">
       <!-- HERO -->
@@ -334,15 +317,16 @@
               </div>
               <div class="field">
                 <label class="field__label" for="f-message">What would you like to talk about? (optional)</label>
-                <textarea class="field__input field__input--area" id="f-message" name="message" rows="3" placeholder="A few lines on your team and how it uses AI today"></textarea>
+                <textarea class="field__input field__input--area" id="f-message" name="message" rows="3" placeholder="A few lines on how we can help you"></textarea>
               </div>
               <!-- Honeypot: real people never fill this in. -->
               <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
               <div class="form__submit">
                 <button class="btn btn--primary" type="submit" disabled>Book a consultancy session</button>
                 <p class="form__note">We only use these details to get back to you.</p>
-                <!-- Launch: link this note and a footer privacy link when the real policy URL is supplied. -->
+                <!-- Launch: link the data-use note when the real policy URL is supplied. -->
                 <noscript><p class="form__note">This form isn’t connected yet. JavaScript is required to submit once a handler is configured.</p></noscript>
+                <p class="form__copyright">&copy; <span data-year>2026</span> Maiac</p>
                 <p class="form__status" data-form-status role="status" aria-live="polite"></p>
               </div>
             </form>
@@ -353,27 +337,12 @@
   </div>
 
   <!-- FOOTER: sits fixed behind the page and is uncovered as the page scrolls away (AREA 17-style curtain reveal). -->
-  <footer class="site-footer" data-footer>
+  <footer class="site-footer" data-footer aria-hidden="true">
     <div class="site-footer__mark" data-footer-mark aria-hidden="true">
       <!-- The page uncovers a persistent Ma accordion; fine-pointer motion adds a bounded local distortion. -->
       <img class="site-footer__mark-img" src="assets/img/maiac-ma-mark.svg?v=873f937bc1e2" alt="" width="847" height="537">
     </div>
-    <div class="site-footer__inner">
-      <p class="eyebrow eyebrow--dark">(Marketing consulting and execution by Maiac)</p>
-      <div class="site-footer__meta">
-        <nav aria-label="Footer">
-          <ul class="site-footer__list">
-            <li><a href="#approach" data-nav-link>Approach</a></li>
-            <li><a href="#work" data-nav-link>Work</a></li>
-            <li><a href="#services" data-nav-link>Services</a></li>
-            <li><a href="#why-maiac" data-nav-link>Why Maiac</a></li>
-            <li><a href="#team" data-nav-link>Team</a></li>
-            <li><a href="#contact" data-nav-link>Contact</a></li>
-          </ul>
-        </nav>
-        <p class="site-footer__copy">© <span data-year>2026</span> Maiac</p>
-      </div>
-    </div>
+
   </footer>
 </body>
 </html>

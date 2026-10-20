@@ -56,7 +56,6 @@
     status.setAttribute('aria-live', 'polite');
     status.setAttribute('aria-atomic', 'true');
     setBusy(false); // The HTML button is disabled until the enhancement is available.
-    if (!endpoint() && !status.textContent.trim()) announce('This form isn’t connected yet.');
 
     fields.forEach((entry) => {
       entry.input.addEventListener('blur', () => {

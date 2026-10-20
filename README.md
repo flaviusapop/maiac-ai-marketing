@@ -16,13 +16,15 @@ python -m http.server 8000
 
 Then open http://localhost:8000/.
 
-## Menu interaction
+## Navigation interaction
 
-The native navigation dialog uses a short, reversible reveal: 180ms on entry and 140ms on exit. Reduced motion skips the reveal. Close and Escape return focus to the actual opener; section links focus their destination, and consultancy actions focus Name.
+A persistent transparent header keeps the desktop section links in a vertical list throughout scrolling. Its white logo and navigation use difference blending over page content. There is no compact horizontal navigation bar or scroll-progress indicator. Without JavaScript, section links remain available in normal document flow.
 
-Scroll locking preserves the document's scroll range and the page/footer stacking order. Keep the full and compact header coordinates, native dialog containment and immediate navigation behavior when maintaining this interaction.
+On mobile, Menu opens the native navigation dialog with a short, reversible reveal: 180ms on entry and 140ms on exit. Reduced motion skips the reveal. Close and Escape return focus to the opener; section links focus their destination, and consultancy actions focus Name. Scroll locking preserves the document's scroll range and the page/footer stacking order through the visible exit.
 
 ## Footer interaction
+
+The footer contains only the interactive Ma artwork; the persistent header provides navigation across the page. Copyright sits below the contact form's data-use note.
 
 The repeated Ma artwork fills the footer across window sizes and responds directly to mouse, pen and single-finger movement, then settles. There is no autoplay. By project direction, this direct interaction remains active when reduced motion is requested; smooth scrolling, work-image zoom and decorative transitions still honor that preference. On touch devices, a single-finger drag or native finger scrolling drives the artwork. Scrolling, link taps and pinch zoom keep their browser behavior; multi-finger gestures suspend deformation. Short windows use a normal-flow footer.
 
@@ -32,7 +34,7 @@ The contour data is derived from the Ma SVG and adds no runtime dependency. The 
 
 ## Contact and outstanding configuration
 
-The contact form is deliberately disconnected. It validates fields locally but does not deliver messages until a genuine handler is set in `data-endpoint` on the form in `index.html`. The real handler must validate input and enforce the website honeypot server-side. No provider has been chosen.
+The contact form is deliberately disconnected. It validates fields locally but does not deliver messages until a genuine handler is set in `data-endpoint` on the form in `index.html`. The real handler must validate input and enforce the website honeypot server-side. No provider has been chosen. The form's separate live status region starts empty and announces validation or disconnected feedback only after an actual submission attempt.
 
 A real privacy policy URL and three case-study destinations are also pending. Work entries remain semantic articles. No analytics is installed. This is a review preview, not a claim of operational form delivery or completed launch configuration.
 

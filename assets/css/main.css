@@ -57,7 +57,8 @@
   --dur-menu-in: 180ms;
   --dur-menu-out: 140ms;
 
-  --bar-h: 64px;
+  --header-reserve: 11rem;
+  --logo-size: clamp(120px, 19.53125vw, 150px);
   --footer-base: 680px;
 }
 
@@ -83,8 +84,10 @@ a { color: inherit; text-decoration: none; }
 button, input, textarea { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+/* Skip navigation moves focus into the page without framing its entire edge. */
+#main:focus-visible { outline-color: transparent; }
 .section--dark :focus-visible, .site-footer :focus-visible { outline-color: var(--paper); }
-[id] { scroll-margin-top: calc(var(--bar-h) + 16px); }
+[id] { scroll-margin-block-start: calc(var(--header-h, var(--header-reserve)) + 16px); }
 
 .skip-link {
   position: absolute; left: 16px; top: -100px; z-index: 100;
@@ -99,6 +102,7 @@ button, input, textarea { font: inherit; color: inherit; }
   background: var(--paper);
   /* JS sets --footer-h to the footer's real height; this fallback matches Figma. */
   margin-block-end: 0;
+  padding-block-start: var(--header-h, var(--header-reserve));
 }
 .footer-reveal .page { margin-block-end: var(--footer-h); }
 .js:not(.no-footer-reveal) .page { margin-block-end: var(--footer-h, var(--footer-base)); }
@@ -181,54 +185,53 @@ button, input, textarea { font: inherit; color: inherit; }
   text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.2em;
 }
 
-/* ---------- Header (full) ---------- */
+/* ---------- Persistent header: same vertical section list throughout the page ---------- */
 .site-header {
+  position: fixed; inset-block-start: 0; inset-inline: 0; z-index: 50;
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  padding: 24px var(--gutter);
-  max-width: calc(var(--max) + 2 * var(--gutter)); margin-inline: auto;
+  padding-block: 24px; padding-inline: var(--gutter);
+  max-inline-size: calc(var(--max) + 2 * var(--gutter)); margin-inline: auto;
+  color: oklch(100% 0 none); background: transparent;
+  mix-blend-mode: difference; pointer-events: none;
 }
-.site-header__list { list-style: none; padding: 0; display: grid; gap: 2px; font-size: 14px; line-height: 1.4; }
-.site-header__list a, .nav-bar__list a {
-  background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
-  transition: background-size var(--dur) var(--ease-out), color var(--dur-fast);
+.site-header a, .site-header button { pointer-events: auto; }
+.site-header :focus-visible { outline-color: currentColor; }
+.site-header__nav { justify-self: start; }
+.site-header__list {
+  list-style: none; padding: 0; display: grid; gap: 2px;
+  font-size: 14px; line-height: 1.4;
 }
-@media (hover: hover) and (pointer: fine) { .site-header__list a:hover, .nav-bar__list a:hover { background-size: 100% 1px; } }
+.site-header__list a { display: inline-block; }
+.site-header__list a.is-active { text-decoration: underline; text-underline-offset: 0.2em; }
+@media (hover: hover) and (pointer: fine) {
+  .site-header__list a:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+}
 .site-header__logo { justify-self: center; }
+.site-header__logo img {
+  inline-size: var(--logo-size); max-inline-size: none;
+  filter: brightness(0) invert(1);
+}
 .site-header__actions { justify-self: end; }
+.site-header .menu-toggle { border-color: currentColor; }
+.site-header .menu-toggle:active { background: oklch(100% 0 none); color: var(--ink); }
 
 @media (max-width: 899px) {
+  :root { --header-reserve: calc(40px + var(--logo-size) * 30 / 87); }
   .site-header { grid-template-columns: auto 1fr; padding-block: 20px; }
   .js .site-header__nav, .site-header__actions .text-link { display: none; }
-  html:not(.js) .site-header__nav { grid-column: 1 / -1; grid-row: 2; margin-block-start: 24px; }
-  html:not(.js) .site-header__list { display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: 16px; }
   .site-header__logo { justify-self: start; }
   .js .menu-toggle { display: inline-flex; align-items: center; }
 }
 
-/* ---------- Compact sticky bar ---------- */
-.nav-bar {
-  position: fixed; inset: 0 0 auto 0; z-index: 50;
-  background: rgba(255, 255, 255, 0.92);
-  -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px);
-  border-bottom: 1px solid var(--rule);
-  transform: translateY(-101%);
-  transition: transform 400ms var(--ease-out);
+/* Native links remain usable if scripts are absent or fail. */
+html:not(.js) .site-header {
+  position: relative; color: var(--ink); background: var(--paper); mix-blend-mode: normal;
 }
-.nav-bar.is-visible { transform: translateY(0); }
-.nav-bar__inner {
-  height: calc(var(--bar-h) - 1px);
-  display: flex; align-items: center; gap: 32px;
-  max-width: calc(var(--max) + 2 * var(--gutter)); margin-inline: auto; padding-inline: var(--gutter);
-}
-.nav-bar__nav { margin-right: auto; }
-.nav-bar__list { list-style: none; padding: 0; display: flex; gap: 28px; font-size: 14px; line-height: 1.4; }
-.nav-bar__list a { color: var(--muted); }
-.nav-bar__list a.is-active, .site-header__list a.is-active { color: var(--ink); background-size: 100% 1px; }
-.nav-bar__progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; }
-.nav-bar__progress span { display: block; height: 100%; background: var(--ink); transform-origin: 0 50%; transform: scaleX(var(--progress, 0)); }
+html:not(.js) .site-header__logo img { filter: none; }
+html:not(.js) .page { padding-block-start: 0; }
 @media (max-width: 899px) {
-  .nav-bar__nav, .nav-bar__cta { display: none; }
-  .nav-bar__inner { justify-content: space-between; }
+  html:not(.js) .site-header__nav { grid-column: 1 / -1; grid-row: 2; margin-block-start: 24px; }
+  html:not(.js) .site-header__list { display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: 16px; }
 }
 
 /* ---------- Mobile menu ---------- */
@@ -238,26 +241,22 @@ button, input, textarea { font: inherit; color: inherit; }
   display: none; flex-direction: column; gap: 40px;
   margin: 0; border: 0; max-width: none; max-height: none; width: 100%; height: 100%;
   padding: 20px var(--gutter) 32px;
-  overflow-y: auto;
+  overflow-y: auto; overscroll-behavior: contain;
 }
 .menu[open] { display: flex; }
 .menu::backdrop { background: transparent; }
-.menu { overscroll-behavior: contain; }
 .menu__head {
   display: flex; justify-content: space-between; align-items: center;
   inline-size: 100%; max-inline-size: var(--max); margin-inline: auto;
   padding-inline-end: var(--menu-scrollbar-gap, 0px);
 }
-/* Keep the overlay header in the same pose as the control that opened it. */
-.menu__head img { inline-size: 87px; }
-.menu[data-menu-origin="compact"] { padding-block-start: 0; }
-.menu[data-menu-origin="compact"] .menu__head { min-block-size: calc(var(--bar-h) - 1px); }
-.menu[data-menu-origin="compact"] .menu__head img { inline-size: 70px; }
+.menu__head img { inline-size: var(--logo-size); }
 .menu .menu-toggle { display: inline-flex; }
 .menu__list { list-style: none; padding: 0; display: grid; gap: 8px; font-size: clamp(2rem, 9vw, 3rem); line-height: 1.1; letter-spacing: -0.02em; }
+.menu__list a { display: block; min-block-size: 44px; align-content: center; }
 .menu .btn { align-self: flex-start; margin-top: auto; }
 html.menu-open, body.menu-open { overflow: hidden; }
-/* Cover only the vacated classic scrollbar gutter during the fixed-body lock. */
+/* Retain the accepted fixed-body scroll-lock gutter and root-range handoff. */
 body.menu-open::after {
   content: ""; position: fixed; inset-block: 0; inset-inline-end: 0;
   inline-size: var(--menu-page-scrollbar, 0px); background: var(--paper);
@@ -378,7 +377,7 @@ body.menu-open::after {
 .field__error { font-size: 14px; color: var(--error); }
 .form__submit { display: grid; gap: 16px; justify-items: start; }
 .form__note { font-size: 15px; line-height: 1.4; color: var(--muted); }
-.form__status { font-size: 16px; line-height: 1.4; }
+.form__copyright, .form__status { font-size: 16px; line-height: 1.4; }
 .form__status:empty { position: absolute; }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
@@ -392,23 +391,7 @@ body.menu-open::after {
 }
 .footer-reveal .site-footer { position: fixed; inset-inline: 0; inset-block-end: 0; }
 .js:not(.no-footer-reveal) .site-footer { position: fixed; inset-inline: 0; inset-block-end: 0; }
-.site-footer__inner {
-  position: relative; z-index: 1;
-  mix-blend-mode: normal;
-  justify-items: start;
-  width: 100%; max-width: calc(var(--max) + 2 * var(--gutter)); margin-inline: auto;
-  padding: 64px var(--gutter); display: grid; gap: 40px;
-}
-.site-footer__meta { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: baseline; font-size: 16px; line-height: 1.4; }
-.site-footer__list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 32px; }
-.site-footer__list a {
-  background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
-  transition: background-size var(--dur) var(--ease-out);
-}
-@media (hover: hover) and (pointer: fine) { .site-footer__list a:hover { background-size: 100% 1px; } }
-.site-footer__copy { color: var(--dark-muted); }
-
-/* Artwork stays independent of the original Figma text placement. */
+/* The footer contains only the approved artwork and its deformation surface. */
 .site-footer__mark {
   position: absolute; inset-inline: 0; inset-block: 0;
   inline-size: 100%; block-size: 100%;
@@ -431,7 +414,6 @@ body.menu-open::after {
 @media (max-width: 899px) {
   :root { --footer-base: 560px; }
   .site-footer { min-block-size: 560px; }
-  .site-footer__meta { display: grid; }
 }
 
 /* ---------- Reduced motion ---------- */
@@ -450,17 +432,7 @@ body.menu-open::after {
 .menu__head, .menu .btn { flex-shrink: 0; }
 .menu-toggle:active { background: var(--ink); color: var(--paper); }
 a:active { text-decoration: underline; text-underline-offset: 0.18em; }
-.menu__list a.is-active, .site-footer__list a.is-active { text-decoration: underline; text-underline-offset: 0.18em; }
-.site-footer__inner .eyebrow, .site-footer__copy { color: var(--paper); }
-.site-footer__inner > .eyebrow, .site-footer__meta { background: var(--ink); }
+.menu__list a.is-active { text-decoration: underline; text-underline-offset: 0.18em; }
 .team__scroller:focus-visible { outline-offset: -4px; }
-.nav-bar__inner { gap: clamp(12px, 2.22vw, 32px); }
-.nav-bar__list { gap: clamp(10px, 1.94vw, 28px); }
-.nav-bar__logo { flex: none; }
-.nav-bar__cta { flex-shrink: 0; }
-.nav-bar__list a { white-space: nowrap; }
-.nav-bar.is-condensed .nav-bar__nav, .nav-bar.is-condensed .nav-bar__cta { display: none; }
-.js .nav-bar.is-condensed .nav-bar__toggle { display: inline-flex; align-items: center; }
-.nav-bar.is-condensed .nav-bar__inner { justify-content: space-between; }
 @media (prefers-reduced-motion: reduce) { .work-card__img { transform: none; } }
 @media (forced-colors: active) { .btn { border-color: ButtonText; } .is-active { text-decoration: underline; } }
