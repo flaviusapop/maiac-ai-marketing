@@ -284,7 +284,7 @@
     };
     const measureArt = () => {
       const rect = mark.getBoundingClientRect();
-      const copyCount = desktop.matches ? 7 : 2;
+      const copyCount = desktop.matches ? 5 : 2;
       const nextDpr = Math.min(devicePixelRatio || 1, 2);
       // Mobile browser chrome can resize the viewport without changing the art.
       // Keep the current field unless the artwork geometry actually changes.
@@ -321,7 +321,7 @@
       contoursLoading = true;
       // Derived from the shipped SVG offline, so moving the mouse never has to
       // sample SVG geometry or import a graphics library.
-      fetch(new URL('maiac-ma-contours.json', mainMark.src), { signal: lifecycle.signal })
+      fetch(new URL('maiac-ma-contours.json?v=8b6473761048', mainMark.src), { signal: lifecycle.signal })
         .then(response => { if (!response.ok) throw new Error(`Artwork data: ${response.status}`); return response.json(); })
         .then(data => { contours = data.paths; pathsDirty = true; })
         .catch(error => { if (error.name !== 'AbortError') console.warn('[Maiac] Cursor effect unavailable; static artwork retained.', error); });
