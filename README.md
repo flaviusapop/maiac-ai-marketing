@@ -16,11 +16,21 @@ python -m http.server 8000
 
 Then open http://localhost:8000/.
 
+## Loading introduction and hero
+
+The hero begins directly with the main heading, with adjusted spacing above it. A bounded Maiac wordmark introduction plays once per browser session. Direct section links and history returns skip it; adding `?intro=replay` to the page URL replays it. Keyboard, pointer, touch or wheel input dismisses the introduction immediately. It never locks focus or scrolling, does not wait for fonts or all images, and defaults to hidden if JavaScript or the matching styles are unavailable. An independent timeout removes the layer if its animation does not complete.
+
+By explicit project direction, the loading introduction remains animated when reduced motion is requested, matching the direct footer interaction exception. Other page motion continues to honor that preference.
+
 ## Navigation interaction
 
 A persistent transparent header keeps the desktop section links in a vertical list throughout scrolling. Its white logo and navigation use difference blending over page content. There is no compact horizontal navigation bar or scroll-progress indicator. Without JavaScript, section links remain available in normal document flow.
 
 On mobile, Menu opens the native navigation dialog with a short, reversible reveal: 180ms on entry and 140ms on exit. Reduced motion skips the reveal. Close and Escape return focus to the opener; section links focus their destination, and consultancy actions focus Name. Scroll locking preserves the document's scroll range and the page/footer stacking order through the visible exit.
+
+## Team
+
+Valentin Agafitei joins the team as Designer. His portrait has JPEG and WebP variants at 540px and 1037px wide. A static CSS crop aligns his head more closely with the existing team portraits; the image is not generated or retouched. The team remains a finite horizontal scroller.
 
 ## Footer interaction
 
@@ -28,7 +38,7 @@ The footer contains only the interactive Ma artwork; the persistent header provi
 
 The repeated Ma artwork fills the footer across window sizes and responds directly to mouse, pen and single-finger movement, then settles. There is no autoplay. By project direction, this direct interaction remains active when reduced motion is requested; smooth scrolling, work-image zoom and decorative transitions still honor that preference. On touch devices, a single-finger drag or native finger scrolling drives the artwork. Scrolling, link taps and pinch zoom keep their browser behavior; multi-finger gestures suspend deformation. Short windows use a normal-flow footer.
 
-Below900px, three Ma marks fill the artwork width; desktop retains six marks. Touch input has a short bounded smoothing bridge and a softer settling response; browser-toolbar height changes retain the current deformation when the artwork geometry is unchanged.
+Below 900px, three Ma marks fill the artwork width; desktop retains six marks. Touch input has a short bounded smoothing bridge and a softer settling response; browser-toolbar height changes retain the current deformation when the artwork geometry is unchanged.
 
 The contour data is derived from the Ma SVG and adds no runtime dependency. The footer's a terminal has a smooth lower edge in both static and animated artwork.
 

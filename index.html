@@ -20,7 +20,8 @@
 
   <link rel="preload" href="assets/fonts/hanken-grotesk-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/hanken-grotesk-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="assets/css/main.css?v=3b8979c5c247">
+  <link rel="preload" href="assets/img/maiac-logo.svg" as="image" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/main.css?v=5ed36bc7f055">
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" sizes="180x180">
@@ -28,6 +29,57 @@
   <script src="assets/js/contact.js?v=dc3c197ed058" defer></script>
 </head>
 <body>
+  <!-- Decorative first-visit introduction. The page stays in flow and usable underneath. -->
+  <div class="site-loader" data-site-loader aria-hidden="true" hidden>
+    <div class="site-loader__cover"></div>
+    <div class="site-loader__slot"><img class="site-loader__logo" src="assets/img/maiac-logo.svg" alt="" width="87" height="30"></div>
+  </div>
+  <script>
+    (() => {
+      const loader = document.querySelector('[data-site-loader]');
+      let watchdog;
+      let started = false, finished = false;
+      const listeners = [];
+      const finish = () => {
+        finished = true;
+        loader.hidden = true;
+        clearTimeout(watchdog);
+        listeners.splice(0).forEach(remove => remove());
+      };
+      const on = (target, event, handler, options) => {
+        target.addEventListener(event, handler, options);
+        listeners.push(() => target.removeEventListener(event, handler, options));
+      };
+      try {
+        const navigation = performance.getEntriesByType('navigation')[0];
+        const replay = new URLSearchParams(location.search).get('intro') === 'replay';
+        if (location.hash || navigation?.type === 'back_forward') return;
+        try { if (!replay && sessionStorage.getItem('maiac:intro-played')) return; } catch (_) {}
+        const start = () => {
+          if (started || finished || document.hidden) return;
+          try {
+            if (location.hash) { finish(); return; }
+            // Without the matching stylesheet, leave the default-hidden layer alone.
+            if (getComputedStyle(loader).getPropertyValue('--intro-ready').trim() !== '1') { finish(); return; }
+            const logo = loader.querySelector('img');
+            if (logo.complete && !logo.naturalWidth) { finish(); return; }
+            // Independent of main.js, fonts and image loading; CSS also ends the cover.
+            watchdog = setTimeout(finish, 1800);
+            on(logo, 'error', finish);
+            on(loader, 'animationend', event => { if (event.animationName === 'intro-cover') finish(); });
+            ['pointerdown', 'touchstart', 'wheel', 'keydown'].forEach(event => on(document, event, finish, { capture: true, passive: true }));
+            started = true;
+            loader.hidden = false;
+            try { sessionStorage.setItem('maiac:intro-played', 'true'); } catch (_) {}
+          } catch (_) { finish(); }
+        };
+        on(window, 'pagehide', finish);
+        // Background-opened previews begin when seen, rather than silently skipping.
+        on(document, 'visibilitychange', () => { if (document.hidden) { if (started) finish(); } else start(); });
+        start();
+      } catch (_) { finish(); }
+    })();
+  </script>
   <a class="skip-link" href="#main">Skip to content</a>
 
   <!-- One persistent transparent header. Desktop sections remain vertical while scrolling. -->
@@ -74,7 +126,6 @@
     <main id="main" tabindex="-1">
       <!-- HERO -->
       <section class="hero container" aria-labelledby="hero-title">
-        <p class="eyebrow">(Marketing consulting and execution by Maiac)</p>
         <h1 class="hero__title display-xl" id="hero-title">Branding, marketing and AI enablement for the companies building what’s next.</h1>
         <div class="hero__aside aside-col">
           <p class="lead">Maiac amplifies your marketing in two ways: our consultants help your team move its routine work onto AI so it takes less of their week, and our creatives and performance marketers work alongside you to make the ideas and run the campaigns, on the budget you already have.</p>
@@ -272,6 +323,14 @@
               </picture>
               <h3 class="member__name">Timeea Bara</h3>
               <p class="member__role">Content Strategist</p>
+            </li>
+            <li class="member">
+              <picture class="member__portrait--valentin">
+                <source type="image/webp" srcset="assets/img/team-valentin-agafitei-540.webp 540w, assets/img/team-valentin-agafitei-1037.webp 1037w" sizes="(min-width: 900px) 540px, 78vw">
+                <img class="member__photo" src="assets/img/team-valentin-agafitei-540.jpg" srcset="assets/img/team-valentin-agafitei-540.jpg 540w, assets/img/team-valentin-agafitei-1037.jpg 1037w" sizes="(min-width: 900px) 540px, 78vw" alt="Valentin Agafitei" width="1037" height="1383" loading="lazy" decoding="async" draggable="false">
+              </picture>
+              <h3 class="member__name">Valentin Agafitei</h3>
+              <p class="member__role">Designer</p>
             </li>
           </ul>
         </div>

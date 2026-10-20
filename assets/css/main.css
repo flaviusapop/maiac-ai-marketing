@@ -95,6 +95,47 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .skip-link:focus { top: 16px; }
 
+/* ---------- First-visit introduction ----------
+   One wordmark lifts out of its slot as the black cover fades. No page lock. */
+.site-loader {
+  --intro-ready: 1; --intro-logo-size: clamp(180px, 18vw, 260px);
+  --intro-cover-duration: 1560ms; --intro-wordmark-duration: 1280ms;
+}
+.site-loader__cover {
+  position: fixed; inset: 0; z-index: 101; pointer-events: none;
+  background: oklch(0% 0 none);
+  animation: intro-cover var(--intro-cover-duration) linear both;
+}
+.site-loader__slot {
+  position: fixed; z-index: 102; pointer-events: none;
+  inset-inline-start: max(var(--gutter), calc((100vw - var(--max)) / 2));
+  inset-block-start: 50%; transform: translateY(-50%);
+  inline-size: var(--intro-logo-size); aspect-ratio: 87 / 30;
+  overflow: clip;
+}
+.site-loader__logo {
+  inline-size: 100%; filter: brightness(0) invert(1);
+  animation: intro-wordmark var(--intro-wordmark-duration) var(--ease-out) both;
+}
+@keyframes intro-cover {
+  0%, 64% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+@keyframes intro-wordmark {
+  0%, 12% { opacity: 0; transform: translateY(0); }
+  38%, 62% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 1; transform: translateY(-102%); }
+}
+/* Loading and direct footer motion are explicit user-selected exceptions. */
+@media (prefers-reduced-motion: reduce) {
+  .site-loader__cover {
+    animation: intro-cover var(--intro-cover-duration) linear both !important;
+  }
+  .site-loader__logo {
+    animation: intro-wordmark var(--intro-wordmark-duration) var(--ease-out) both !important;
+  }
+}
+
 /* ---------- Page shell (sits above the fixed footer) ---------- */
 .page {
   position: relative;
@@ -343,6 +384,8 @@ body.menu-open::after {
 .member { flex: none; width: 540px; scroll-snap-align: start; }
 @media (max-width: 899px) { .member { width: 78vw; } }
 .member__photo { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: #eee; pointer-events: none; }
+.member__portrait--valentin { overflow: clip; }
+.member__portrait--valentin .member__photo { transform: scale(1.2); transform-origin: 50% 87%; }
 .member__name { margin-top: 20px; font-size: 22px; font-weight: 500; line-height: 1.4; }
 .member__role { margin-top: 4px; font-size: 16px; line-height: 1.4; color: var(--muted); }
 
