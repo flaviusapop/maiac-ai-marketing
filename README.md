@@ -1,53 +1,35 @@
 # Maiac AI Marketing
 
-Public preview of the Maiac branding, marketing and AI enablement landing page.
+Maiac branding, marketing and AI enablement website. Dependency-free HTML, CSS and JavaScript with self-hosted photographs, artwork and Hanken Grotesk fonts. GitHub Pages serves the root of main with no build step.
 
-Website: https://flaviusapop.github.io/maiac-ai-marketing/
-
-Dependency-free HTML, CSS and JavaScript with self-hosted photographs, artwork and Hanken Grotesk fonts. GitHub Pages serves the root of the main branch; no build step is needed.
+The repository preserves the existing CNAME for maiac.agency. Custom-domain availability depends on its DNS and HTTPS configuration.
 
 ## Local preview
 
-Run from this repository folder:
+Run `python -m http.server 8000` from this repository and open http://localhost:8000/.
 
-```sh
-python -m http.server 8000
-```
+## Team scrolling
 
-Then open http://localhost:8000/.
+Normal page scrolling holds the Team section in place while moving through the members horizontally, then continues down after the last member. Scrolling upward reverses the same sequence. The stage and portrait sizes are measured to keep full names, roles and photographs readable. Keyboard arrow keys on the Team region move between measured card positions.
 
-## Loading introduction and hero
+Pinned scrolling also runs with Reduce Motion enabled by explicit project direction. Short windows, unsupported layouts, absent JavaScript and script failures retain an ordinary horizontal row. Pinned mode does not cancel wheel or touch scrolling.
 
-The hero begins directly with the main heading, with adjusted spacing above it. A bounded Maiac wordmark introduction plays once per browser session. Direct section links and history returns skip it; adding `?intro=replay` to the page URL replays it. Keyboard, pointer, touch or wheel input dismisses the introduction immediately. It never locks focus or scrolling, does not wait for fonts or all images, and defaults to hidden if JavaScript or the matching styles are unavailable. An independent timeout removes the layer if its animation does not complete.
+## Contact
 
-By explicit project direction, the loading introduction remains animated when reduced motion is requested, matching the direct footer interaction exception. Other page motion continues to honor that preference.
+Enquiries go through FormSubmit to andreea@maiac.agency. Name, work email and company are required; the message is optional. The subject is New Maiac consultancy enquiry, and the visitor email supplies Reply-To. The receiving inbox requires FormSubmit's one-time confirmation; the project owner has confirmed activation and functionality.
 
-## Navigation interaction
+The enhanced form uses explicit provider acceptance before showing success. Errors and timeouts preserve entered details and offer direct email recovery. A server-compatible honeypot and native no-JavaScript validation/POST are retained. No autoresponse or CAPTCHA-disabling setting is added. Browser verification intercepts requests and does not prove individual inbox delivery.
 
-A persistent transparent header keeps the desktop section links in a vertical list throughout scrolling. Its white logo and navigation use difference blending over page content. There is no compact horizontal navigation bar or scroll-progress indicator. Without JavaScript, section links remain available in normal document flow.
+## Other interactions
 
-On mobile, Menu opens the native navigation dialog with a short, reversible reveal: 180ms on entry and 140ms on exit. Reduced motion skips the reveal. Close and Escape return focus to the opener; section links focus their destination, and consultancy actions focus Name. Scroll locking preserves the document's scroll range and the page/footer stacking order through the visible exit.
+The bounded, dismissible Maiac introduction runs once per session, with hash/history skip and an intro=replay query option. The persistent blending header, native mobile navigation, four supplied portraits and Valentin's approved crop remain. Footer artwork has three Ma marks below900px and six on desktop.
 
-## Team
+Loading introduction, pinned Team movement and direct footer interaction are explicit Reduce Motion exceptions. Other effects retain their existing preference handling. No dependency or authored analytics is added.
 
-Valentin Agafitei joins the team as Designer. His portrait has JPEG and WebP variants at 540px and 1037px wide. A static CSS crop aligns his head more closely with the existing team portraits; the image is not generated or retouched. The team remains a finite horizontal scroller.
+## Remaining configuration
 
-## Footer interaction
-
-The footer contains only the interactive Ma artwork; the persistent header provides navigation across the page. Copyright sits below the contact form's data-use note.
-
-The repeated Ma artwork fills the footer across window sizes and responds directly to mouse, pen and single-finger movement, then settles. There is no autoplay. By project direction, this direct interaction remains active when reduced motion is requested; smooth scrolling, work-image zoom and decorative transitions still honor that preference. On touch devices, a single-finger drag or native finger scrolling drives the artwork. Scrolling, link taps and pinch zoom keep their browser behavior; multi-finger gestures suspend deformation. Short windows use a normal-flow footer.
-
-Below 900px, three Ma marks fill the artwork width; desktop retains six marks. Touch input has a short bounded smoothing bridge and a softer settling response; browser-toolbar height changes retain the current deformation when the artwork geometry is unchanged.
-
-The contour data is derived from the Ma SVG and adds no runtime dependency. The footer's a terminal has a smooth lower edge in both static and animated artwork.
-
-## Contact and outstanding configuration
-
-The contact form is deliberately disconnected. It validates fields locally but does not deliver messages until a genuine handler is set in `data-endpoint` on the form in `index.html`. The real handler must validate input and enforce the website honeypot server-side. No provider has been chosen. The form's separate live status region starts empty and announces validation or disconnected feedback only after an actual submission attempt.
-
-A real privacy policy URL and three case-study destinations are also pending. Work entries remain semantic articles. No analytics is installed. This is a review preview, not a claim of operational form delivery or completed launch configuration.
+A real privacy-policy URL and three case-study destinations remain pending. Work entries remain semantic articles. Domain routing and mailbox delivery should be checked when host configuration changes.
 
 ## Fonts and assets
 
-Hanken Grotesk 400/500 latin and latin-ext files are distributed under SIL Open Font License 1.1; retain `assets/fonts/OFL-LICENSE.txt`. Artwork and photographs are supplied Maiac project assets. No general MIT license is asserted for the site or brand assets.
+Hanken Grotesk400/500 latin and latin-ext files use SIL Open Font License1.1; retain assets/fonts/OFL-LICENSE.txt. Artwork and photographs are supplied Maiac assets. No general MIT license is asserted for the site or brand assets.

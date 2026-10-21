@@ -21,12 +21,12 @@
   <link rel="preload" href="assets/fonts/hanken-grotesk-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/hanken-grotesk-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/img/maiac-logo.svg" as="image" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/css/main.css?v=5ed36bc7f055">
+  <link rel="stylesheet" href="assets/css/main.css?v=220f09cfc9db">
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png" sizes="180x180">
-  <script src="assets/js/main.js?v=737f66ea1d09" defer onerror="document.documentElement.classList.remove('js')"></script>
-  <script src="assets/js/contact.js?v=dc3c197ed058" defer></script>
+  <script src="assets/js/main.js?v=e72f4cf0184f" defer onerror="document.documentElement.classList.remove('js')"></script>
+  <script src="assets/js/contact.js?v=330ac5587a06" defer></script>
 </head>
 <body>
   <!-- Decorative first-visit introduction. The page stays in flow and usable underneath. -->
@@ -293,6 +293,7 @@
 
       <!-- TEAM: horizontal scroller -->
       <section class="section section--rule team" id="team" aria-labelledby="team-title" data-section>
+        <div class="team__pin" data-team-pin>
         <div class="container split split--head">
           <p class="eyebrow split__label">(Maiac team)</p>
           <h2 class="display-m split__content" id="team-title">Team</h2>
@@ -334,6 +335,7 @@
             </li>
           </ul>
         </div>
+        </div>
       </section>
 
       <!-- TRUSTED BY -->
@@ -357,8 +359,10 @@
           <div class="aside-col contact__col">
             <p class="lead">Let’s see where your team is today, what your marketing objectives look like, and how we can use both AI and the creative powerhouse in our teams to get you closer to your business objectives.</p>
 
-            <!-- TODO(dev): set data-endpoint (and/or action) to the real form handler. See DEV-GUIDE.md › Contact form. -->
-            <form class="form" data-contact-form data-endpoint="" method="post" novalidate>
+            <!-- FormSubmit requires one-time confirmation by the receiving inbox. -->
+            <form class="form" data-contact-form data-endpoint="https://formsubmit.co/ajax/andreea@maiac.agency" data-contact-email="andreea@maiac.agency" action="https://formsubmit.co/andreea@maiac.agency" method="post">
+              <input type="hidden" name="_subject" value="New Maiac consultancy enquiry">
+              <input type="hidden" name="_template" value="table">
               <div class="field">
                 <label class="field__label" for="f-name">Name</label>
                 <input class="field__input" id="f-name" name="name" type="text" autocomplete="name" placeholder="Your full name" required>
@@ -378,13 +382,13 @@
                 <label class="field__label" for="f-message">What would you like to talk about? (optional)</label>
                 <textarea class="field__input field__input--area" id="f-message" name="message" rows="3" placeholder="A few lines on how we can help you"></textarea>
               </div>
-              <!-- Honeypot: real people never fill this in. -->
-              <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+              <!-- FormSubmit also checks this honeypot on the server. -->
+              <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" name="_honey" type="text" tabindex="-1" autocomplete="off"></div>
               <div class="form__submit">
-                <button class="btn btn--primary" type="submit" disabled>Book a consultancy session</button>
+                <button class="btn btn--primary" type="submit">Book a consultancy session</button>
                 <p class="form__note">We only use these details to get back to you.</p>
                 <!-- Launch: link the data-use note when the real policy URL is supplied. -->
-                <noscript><p class="form__note">This form isn’t connected yet. JavaScript is required to submit once a handler is configured.</p></noscript>
+                <noscript><p class="form__note">You can also email <a href="mailto:andreea@maiac.agency">andreea@maiac.agency</a>.</p></noscript>
                 <p class="form__copyright">&copy; <span data-year>2026</span> Maiac</p>
                 <p class="form__status" data-form-status role="status" aria-live="polite"></p>
               </div>

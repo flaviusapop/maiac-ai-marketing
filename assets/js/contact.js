@@ -1,4 +1,4 @@
-/* Maiac contact form. No provider or endpoint is assumed. */
+/* Maiac contact form. FormSubmit delivers enquiries after inbox activation. */
 (() => {
   'use strict';
 
@@ -27,9 +27,19 @@
 
     const endpoint = () => (form.dataset.endpoint || form.getAttribute('action') || '').trim();
     const announce = (message) => { status.textContent = message; };
+    const announceFailure = (message) => {
+      announce(message);
+      const email = form.dataset.contactEmail;
+      if (!email) return;
+      const link = document.createElement('a');
+      link.href = `mailto:${email}`;
+      link.textContent = email;
+      status.append(' You can also email ', link, '.');
+    };
     const setBusy = (busy) => {
       pending = busy;
       submit.disabled = busy;
+      fields.forEach(({ input }) => { input.readOnly = busy; });
       // Keep the live status outside a busy ancestor so Sending can be announced immediately.
       submit.setAttribute('aria-busy', String(busy));
     };
@@ -55,7 +65,8 @@
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
     status.setAttribute('aria-atomic', 'true');
-    setBusy(false); // The HTML button is disabled until the enhancement is available.
+    form.noValidate = true; // Without this enhancement, use native validation and the form action.
+    setBusy(false);
 
     fields.forEach((entry) => {
       entry.input.addEventListener('blur', () => {
@@ -79,11 +90,12 @@
       }
 
       const data = new FormData(form);
-      if (String(data.get('website') || '').trim()) {
-        // This is only a client check. The real handler must validate the honeypot.
+      if (String(data.get('_honey') || '').trim()) {
+        // FormSubmit enforces the same trap for submissions that bypass this check.
         announce('This message couldn’t be sent. Please reload the page and try again.');
         return;
       }
+      fields.forEach(({ input }) => { data.set(input.name, input.value.trim()); });
       const url = endpoint();
       if (!url) {
         announce('This form isn’t connected yet.');
@@ -103,11 +115,18 @@
       try {
         const response = await fetch(url, {
           method: 'POST',
-          body: data,
-          headers: { Accept: 'application/json' },
+          body: JSON.stringify(Object.fromEntries(data)),
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          credentials: 'omit',
           signal: activeRequest.signal,
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        // HTTP 200 can still mean rejection or an inbox awaiting activation.
+        const accepted = result?.success === true || result?.success === 'true';
+        if (!accepted || /\bactivat(?:e|ion)\b/i.test(result?.message || '')) {
+          throw new Error('FormSubmit did not accept this enquiry');
+        }
         if (disposed) return;
         form.reset();
         fields.forEach((entry) => {
@@ -119,7 +138,7 @@
         announce('Thank you. We’ll get back to you soon.');
       } catch (error) {
         if (disposed) return;
-        announce(timedOut
+        announceFailure(timedOut
           ? 'The request timed out. Your details are still here. Please try again.'
           : 'Something went wrong. Please try again in a moment.');
       } finally {
@@ -137,7 +156,7 @@
       timeout = null;
       request?.abort();
       request = null;
-      if (pending) announce('Something went wrong. Please try again in a moment.');
+      if (pending) announceFailure('Something went wrong. Please try again in a moment.');
       setBusy(false);
     };
   };
